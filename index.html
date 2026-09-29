@@ -111,14 +111,10 @@
     </section>
     <section class="card">
       <h2>Машини</h2>
-      <p class="muted noprint">Спочатку пакет рахує, скільки авто треба. Потім назвіть водія. Ліміт кг можна змінити на кожній машині.</p>
-      <form id="truckForm" class="noprint">
-        <div class="row">
-          <div><label>Водій / авто</label><input id="truckName" placeholder="Іван, AA 0000 AA" required /></div>
-          <div><label>Ліміт кг</label><input id="cap" type="number" value="1500" /></div>
-        </div>
-        <div class="btns"><button type="submit">Додати / призначити машину</button></div>
-      </form>
+      <p class="muted noprint">Плюс додає одну машину. Порожні слоти самі не з’являються. Після видалення авто заявки вертаються в чергу.</p>
+      <div class="btns noprint">
+        <button type="button" id="addTruckBtn">+ машина</button>
+      </div>
       <div id="trucks"></div>
     </section>
   </main>
@@ -175,21 +171,25 @@ function splitRow(line) {
   if (line.includes(";")) return line.split(";").map(s => s.trim());
   return line.split(/\s{2,}/).map(s => s.trim());
 }
+const WEEK_POS = {пн:0,вт:1,ср:2,чт:3,пт:4,сб:5,нд:6};
 function headerDayIndex(headers, weekBlock, wd) {
   const heads = headers.map(h => h.toLowerCase().replace(/\s+/g, " "));
-  const tagged = heads.map((h, i) => {
+  const tagged = [];
+  heads.forEach((h, i) => {
     const day = (h.match(/пн|вт|ср|чт|пт|сб|нд|вс/) || [""])[0].replace("вс", "нд");
-    const week = h.includes("п |") || h.startsWith("п ") || /\bп\s*\|/.test(h) ? 1
-      : h.includes("з |") || h.startsWith("з ") || /\bз\s*\|/.test(h) ? 0 : null;
-    return { i, day, week, raw: h };
-  }).filter(x => x.day);
-  const prefer = tagged.filter(x => x.day === wd && (x.week === weekBlock || x.week === null));
-  if (prefer.length) {
-    const byWeek = prefer.filter(x => x.week === weekBlock);
-    return (byWeek[0] || prefer[weekBlock] || prefer[0]).i;
-  }
-  const onlyDays = tagged.filter(x => x.day === wd);
-  return onlyDays[weekBlock] ? onlyDays[weekBlock].i : (onlyDays[0] && onlyDays[0].i);
+    if (!day) return;
+    const week = /(?:^|[^\w])п\s*\|/.test(h) || h.includes("п |") ? 1
+      : /(?:^|[^\w])з\s*\|/.test(h) || h.includes("з |") ? 0 : null;
+    tagged.push({ i, day, week });
+  });
+  const sameDay = tagged.filter(x => x.day === wd);
+  const byWeek = sameDay.filter(x => x.week === weekBlock);
+  if (byWeek.length) return byWeek[0].i;
+  if (sameDay.length > weekBlock) return sameDay[weekBlock].i;
+  if (sameDay.length) return sameDay[0].i;
+  const firstDay = heads.findIndex(h => /пн|вт|ср|чт|пт|сб/.test(h));
+  if (firstDay >= 0 && WEEK_POS[wd] != null) return firstDay + WEEK_POS[wd] + weekBlock * 7;
+  return null;
 }
 function parseStore(cells) {
   let code = "", address = "";
@@ -218,24 +218,29 @@ function parseStore(cells) {
 }
 function parseSchedule(text, dateStr, weekBlock) {
   const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g, " ").trimEnd()).filter(l => l.trim());
-  if (!lines.length) return [];
+  if (!lines.length) return { rows: [], weekday: weekdayOf(dateStr), col: null };
   const wd = weekdayOf(dateStr);
-  let headerIdx = 0;
-  let col = null;
-  for (let i = 0; i < Math.min(lines.length, 5); i++) {
+  let headerIdx = -1, col = null;
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
     const cells = splitRow(lines[i]);
     const idx = headerDayIndex(cells, weekBlock, wd);
     if (idx != null) { headerIdx = i; col = idx; break; }
   }
+  if (col == null) {
+    const sample = splitRow(lines[Math.min(2, lines.length-1)]);
+    if (sample.length >= 9 && WEEK_POS[wd] != null) {
+      col = 2 + WEEK_POS[wd] + weekBlock * 7;
+      headerIdx = 1;
+    }
+  }
   const out = [];
-  const start = col == null ? 0 : headerIdx + 1;
-  for (let i = start; i < lines.length; i++) {
+  if (col == null) return { rows: [], weekday: wd, col: null };
+  for (let i = headerIdx + 1; i < lines.length; i++) {
     const cells = splitRow(lines[i]);
     if (!cells.join("").trim()) continue;
-    if (/магазин|завод/i.test(cells.join(" ")) && cells.length < 3) continue;
-    if (col != null && !isMark(cells[col])) continue;
-    const storeCells = col != null ? cells.slice(0, Math.min(col, 3)) : cells;
-    const rec = parseStore(storeCells.length ? storeCells : cells);
+    if (/магазин|завод/i.test(cells.slice(0,3).join(" "))) continue;
+    if (!isMark(cells[col])) continue;
+    const rec = parseStore(cells.slice(0, Math.min(col, 3)));
     if (rec) out.push(rec);
   }
   return { rows: out, weekday: wd, col };
@@ -290,8 +295,11 @@ function autoSpread() {
     const day = $("date").value;
     const list = dayOrders();
     if (!list.length) { alert("Немає заявок на цю дату. Спочатку завантажте графік."); return; }
-    const { cap, suggest, per } = estimate();
-    ensureSlots(Math.max(suggest, 1), cap);
+    const { cap, per } = estimate();
+    if (!state.trucks.length) {
+      const extra = { id: uid(), name: "Машина 1", cap, unassigned: true };
+      state.trucks.push(extra);
+    }
     list.forEach(o => o.truckId = null);
     const groups = {};
     list.forEach(o => { (groups[o.district] ||= []).push(o); });
@@ -316,8 +324,9 @@ function autoSpread() {
         }
       });
     });
+    state.trucks = state.trucks.filter(t => list.some(o => o.truckId === t.id) || !t.unassigned);
     save();
-    alert("Роскидано " + list.length + " точок на " + new Set(list.map(o=>o.truckId)).size + " машин.");
+    alert("На " + weekdayOf(day).toUpperCase() + " роскидано " + list.length + " точок на " + new Set(list.map(o=>o.truckId)).size + " машин.");
   } catch (err) {
     alert("Помилка розкидання: " + err.message);
   }
@@ -327,8 +336,12 @@ window.logickSpread = autoSpread;
 load();
 $("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
 $("defaultCap").value = state.defaultCap || 1500;
-$("cap").value = state.defaultCap || 1500;
 $("depot").value = state.depot || "Столичне шосе, 100, Київ";
+function dateStrHuman(d) {
+  if (!d) return "";
+  const x = new Date(d + "T12:00:00");
+  return x.toLocaleDateString("uk-UA");
+}
 $("depot").onchange = () => { state.depot = $("depot").value.trim(); save(); };
 
 $("loadPack").onclick = () => {
@@ -339,24 +352,21 @@ $("loadPack").onclick = () => {
   const parsed = parseSchedule(raw, day, weekBlock);
   const rows = parsed.rows || [];
   if (!rows.length) { alert("Не знайшов хрестики на цей день. Перевірте дату і тиждень З/П."); return; }
-  const have = new Set(dayOrders().map(o => o.address + "|" + o.note));
+  state.orders = state.orders.filter(o => o.date !== day);
   let n = 0;
   rows.forEach(p => {
-    const k = p.address + "|" + (p.note||"");
-    if (have.has(k)) return;
     state.orders.push({ id: uid(), date: day, truckId: null, ...p });
     n++;
   });
   state.date = day;
   state.defaultCap = Number($("defaultCap").value||1500);
-  const { suggest, cap } = estimate();
-  ensureSlots(suggest, cap);
   $("pack").value = "";
   save();
-  alert("На " + parsed.weekday.toUpperCase() + " завантажено " + n + " точок. Орієнтовно " + suggest + " машин. Потім «Розкидати» і впишіть водіїв.");
+  const { suggest } = estimate();
+  alert("На " + parsed.weekday.toUpperCase() + " " + dateStrHuman(day) + " завантажено " + n + " точок (тільки цей день). Орієнтовно треба " + suggest + " машин — додайте плюсом і натисніть Розкидати.");
 };
 $("autoBtn").onclick = autoSpread;
-$("defaultCap").onchange = () => { state.defaultCap = Number($("defaultCap").value||1500); $("cap").value = state.defaultCap; save(); };
+$("defaultCap").onchange = () => { state.defaultCap = Number($("defaultCap").value||1500); save(); };
 $("orderForm").onsubmit = (e) => {
   e.preventDefault();
   if (!$("address").value && !$("client").value) return;
@@ -370,14 +380,10 @@ $("orderForm").onsubmit = (e) => {
   $("address").value = $("client").value = $("note").value = "";
   save();
 };
-$("truckForm").onsubmit = (e) => {
-  e.preventDefault();
-  const name = $("truckName").value.trim();
-  const cap = Number($("cap").value || $("defaultCap").value || 1500);
-  const slot = state.trucks.find(t => t.unassigned || /^Машина \d+$/.test(t.name));
-  if (slot) { slot.name = name; slot.cap = cap; slot.unassigned = false; }
-  else state.trucks.push({ id: uid(), name, cap });
-  $("truckName").value = "";
+$("addTruckBtn").onclick = () => {
+  const cap = Number($("defaultCap").value || 1500);
+  const n = state.trucks.length + 1;
+  state.trucks.push({ id: uid(), name: "Машина " + n, cap, unassigned: true });
   save();
 };
 $("clearDay").onclick = () => {
