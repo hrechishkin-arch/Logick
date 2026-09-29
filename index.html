@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logick — план на завтра</title>
+  <style>
+    :root { --bg:#f4f1ea; --ink:#1b1b1b; --line:#d9d2c4; --card:#fffdf8; --acc:#1f3d2b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+    header { padding: 18px 20px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    header h1 { margin: 0; font-size: 22px; letter-spacing: .04em; }
+    header span { color: #666; font-size: 13px; }
+    main { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; padding: 12px 20px 40px; }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    h2 { margin: 0 0 10px; font-size: 15px; }
+    label { display: block; font-size: 12px; color: #666; margin: 8px 0 4px; }
+    input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
+    textarea { min-height: 70px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button { border: 0; background: var(--acc); color: #fff; border-radius: 10px; padding: 9px 12px; font-weight: 650; cursor: pointer; }
+    button.ghost { background: #ece7dc; color: #222; }
+    button.danger { background: #7a2e2e; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .truck { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 10px; background: #fff; }
+    .truck h3 { margin: 0 0 6px; font-size: 14px; }
+    .stop { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+    .stop b { min-width: 18px; }
+    .muted { color: #777; font-size: 12px; }
+    .tag { display: inline-block; background: #ece7dc; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
+    @media print {
+      header .noprint, .noprint, form { display: none !important; }
+      main { display: block; }
+      .truck { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>LOGICK</h1>
+      <span>План развоза · Киев и область · данные только на этом компьютере</span>
+    </div>
+    <div class="btns noprint">
+      <button class="ghost" id="printBtn">Печать водителям</button>
+      <button class="ghost" id="clearDay">Очистить день</button>
+    </div>
+  </header>
+  <main>
+    <section class="card noprint">
+      <h2>Заявка</h2>
+      <form id="orderForm">
+        <div class="row">
+          <div><label>Дата развоза</label><input id="date" type="date" required /></div>
+          <div><label>Район</label>
+            <input id="district" list="districts" placeholder="Оболонь, Вишневе…" required />
+          </div>
+        </div>
+        <datalist id="districts">
+          <option>Голосіївський</option><option>Дарницький</option><option>Деснянський</option>
+          <option>Дніпровський</option><option>Оболонський</option><option>Печерський</option>
+          <option>Подільський</option><option>Святошинський</option><option>Солом'янський</option>
+          <option>Шевченківський</option><option>Бровари</option><option>Вишневе</option>
+          <option>Ірпінь</option><option>Буча</option><option>Бориспіль</option>
+          <option>Обухів</option><option>Васильків</option><option>Вишгород</option>
+        </datalist>
+        <label>Точка / клієнт</label>
+        <input id="client" list="clients" required />
+        <datalist id="clients"></datalist>
+        <label>Адреса</label>
+        <input id="address" required />
+        <div class="row">
+          <div><label>Вага, кг</label><input id="kg" type="number" min="0" step="1" value="0" /></div>
+          <div><label>Обʼєм / місць</label><input id="places" placeholder="2 місця" /></div>
+        </div>
+        <label>Примітка з 1С</label>
+        <textarea id="note"></textarea>
+        <div class="btns">
+          <button type="submit">Додати заявку</button>
+          <button type="button" class="ghost" id="autoBtn">Розкидати по машинах</button>
+        </div>
+      </form>
+      <h2 style="margin-top:18px">Черга заявок</h2>
+      <div id="queue"></div>
+    </section>
+    <section class="card">
+      <h2>Машини до 1.5 т</h2>
+      <form id="truckForm" class="noprint">
+        <div class="row">
+          <div><label>Водій / авто</label><input id="truckName" placeholder="Іван, AA 0000 AA" required /></div>
+          <div><label>Ліміт кг</label><input id="cap" type="number" value="1500" /></div>
+        </div>
+        <div class="btns"><button type="submit">Додати машину</button></div>
+      </form>
+      <div id="trucks"></div>
+    </section>
+  </main>
+<script>
+const KEY = "logick-v1";
+const state = { orders: [], trucks: [], date: "" };
+function load() {
+  try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {}
+  if (!state.orders) state.orders = [];
+  if (!state.trucks) state.trucks = [];
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
+function uid() { return Math.random().toString(36).slice(2, 9); }
+const $ = (id) => document.getElementById(id);
+
+$("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
+
+$("orderForm").onsubmit = (e) => {
+  e.preventDefault();
+  state.date = $("date").value;
+  const o = {
+    id: uid(),
+    date: $("date").value,
+    district: $("district").value.trim(),
+    client: $("client").value.trim(),
+    address: $("address").value.trim(),
+    kg: Number($("kg").value||0),
+    places: $("places").value.trim(),
+    note: $("note").value.trim(),
+    truckId: null
+  };
+  state.orders.push(o);
+  $("address").value = $("note").value = $("places").value = "";
+  $("kg").value = 0;
+  save();
+};
+$("truckForm").onsubmit = (e) => {
+  e.preventDefault();
+  state.trucks.push({ id: uid(), name: $("truckName").value.trim(), cap: Number($("cap").value||1500) });
+  $("truckName").value = "";
+  save();
+};
+$("autoBtn").onclick = () => {
+  const free = state.orders.filter(o => o.date === $("date").value);
+  free.forEach(o => o.truckId = null);
+  const byD = {};
+  free.forEach(o => { (byD[o.district] ||= []).push(o); });
+  const districts = Object.keys(byD).sort((a,b) => byD[b].length - byD[a].length);
+  const trucks = state.trucks.slice();
+  if (!trucks.length) { alert("Спочатку додайте машину"); return; }
+  let t = 0;
+  districts.forEach((d) => {
+    byD[d].forEach((o) => {
+      let guard = trucks.length;
+      while (guard--) {
+        const tr = trucks[t % trucks.length];
+        const used = state.orders.filter(x => x.truckId === tr.id).reduce((s,x)=>s+x.kg,0);
+        if (used + o.kg <= tr.cap || o.kg === 0) { o.truckId = tr.id; break; }
+        t++;
+      }
+      if (!o.truckId) o.truckId = trucks[t % trucks.length].id;
+      t++;
+    });
+  });
+  save();
+};
+$("clearDay").onclick = () => {
+  const d = $("date").value;
+  if (!confirm("Прибрати заявки на "+d+"?")) return;
+  state.orders = state.orders.filter(o => o.date !== d);
+  save();
+};
+$("printBtn").onclick = () => window.print();
+$("date").onchange = () => { state.date = $("date").value; save(); };
+
+function mapsLink(list) {
+  if (!list.length) return "";
+  const q = list.map(o => encodeURIComponent(o.address + ", Київ")).join("/");
+  return "https://www.google.com/maps/dir/" + q;
+}
+function render() {
+  const day = $("date").value;
+  const clients = [...new Set(state.orders.map(o => o.client))].sort();
+  $("clients").innerHTML = clients.map(c => `<option value="${c}"></option>`).join("");
+  const queued = state.orders.filter(o => o.date === day && !o.truckId);
+  $("queue").innerHTML = queued.length ? `<table><tr><th>Район</th><th>Точка</th><th>кг</th><th></th></tr>${
+    queued.map(o => `<tr><td>${o.district}</td><td><b>${o.client}</b><div class="muted">${o.address}</div></td><td>${o.kg||"—"}</td>
+    <td><select data-assign="${o.id}"><option value="">на машину…</option>${
+      state.trucks.map(t => `<option value="${t.id}">${t.name}</option>`).join("")
+    }</select> <button class="danger" data-del="${o.id}">×</button></td></tr>`).join("")
+  }</table>` : `<p class="muted">Немає вільних заявок на цю дату</p>`;
+
+  $("trucks").innerHTML = state.trucks.map(t => {
+    const stops = state.orders.filter(o => o.date === day && o.truckId === t.id);
+    const kg = stops.reduce((s,o)=>s+o.kg,0);
+    const over = kg > t.cap;
+    return `<div class="truck">
+      <h3>${t.name} <span class="tag">${kg} / ${t.cap} кг${over?" · перебір":""}</span>
+        <span class="noprint muted">ліміт кг</span>
+        <input class="noprint" data-cap="${t.id}" type="number" min="100" step="50" value="${t.cap}" style="width:90px;display:inline-block;padding:4px 6px" />
+        <button class="ghost noprint" data-drop="${t.id}">прибрати авто</button>
+      </h3>
+      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div>
+        <div><b>${o.client}</b> · ${o.district}</div>
+        <div>${o.address}</div>
+        <div class="muted">${o.kg?o.kg+" кг":""} ${o.places||""} ${o.note||""}</div>
+        <div class="noprint"><button class="ghost" data-up="${o.id}">↑</button>
+        <button class="ghost" data-down="${o.id}">↓</button>
+        <button class="ghost" data-free="${o.id}">з машини</button></div>
+      </div></div>`).join("") || `<p class="muted">Порожня</p>`}
+      ${stops.length?`<p class="noprint"><a target="_blank" href="${mapsLink(stops)}">Маршрут у Google Maps</a></p>`:""}
+    </div>`;
+  }).join("") || `<p class="muted">Додайте першу машину</p>`;
+
+  document.querySelectorAll("[data-assign]").forEach(el => el.onchange = () => {
+    const o = state.orders.find(x => x.id === el.dataset.assign);
+    o.truckId = el.value || null; save();
+  });
+  document.querySelectorAll("[data-del]").forEach(el => el.onclick = () => {
+    state.orders = state.orders.filter(x => x.id !== el.dataset.del); save();
+  });
+  document.querySelectorAll("[data-cap]").forEach(el => el.onchange = () => {
+    const t = state.trucks.find(x => x.id === el.dataset.cap);
+    t.cap = Math.max(0, Number(el.value||0));
+    save();
+  });
+  document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
+    state.orders.forEach(o => { if (o.truckId === el.dataset.drop) o.truckId = null; });
+    state.trucks = state.trucks.filter(t => t.id !== el.dataset.drop); save();
+  });
+  document.querySelectorAll("[data-free]").forEach(el => el.onclick = () => {
+    state.orders.find(x => x.id === el.dataset.free).truckId = null; save();
+  });
+  document.querySelectorAll("[data-up]").forEach(el => el.onclick = () => move(el.dataset.up, -1));
+  document.querySelectorAll("[data-down]").forEach(el => el.onclick = () => move(el.dataset.down, 1));
+}
+function move(id, dir) {
+  const o = state.orders.find(x => x.id === id);
+  const list = state.orders.filter(x => x.date === o.date && x.truckId === o.truckId);
+  const i = list.findIndex(x => x.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= list.length) return;
+  const a = state.orders.indexOf(list[i]);
+  const b = state.orders.indexOf(list[j]);
+  [state.orders[a], state.orders[b]] = [state.orders[b], state.orders[a]];
+  save();
+}
+load();
+if (state.date) $("date").value = state.date;
+else $("date").value = new Date(Date.now()+86400000).toISOString().slice(0,10);
+render();
+</script>
+</body>
+</html>
