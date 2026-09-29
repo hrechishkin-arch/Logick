@@ -78,7 +78,7 @@
       <p class="muted">Беремо рядки, де стоїть x у день обраної дати. Код магазину зберігається. Район визначається з адреси (Київ, Вишневе, Бровари…).</p>
       <div class="btns">
         <button type="button" id="loadPack">Завантажити день із графіка</button>
-        <button type="button" class="ghost" id="autoBtn">Розкидати по машинах</button>
+        <button type="button" class="ghost" id="autoBtn" onclick="window.logickSpread()">Розкидати по машинах</button>
       </div>
       <details>
         <summary class="muted">Додати одну заявку вручну</summary>
@@ -282,39 +282,43 @@ function ensureSlots(n, cap) {
   state.trucks.forEach(t => { if (!t.cap) t.cap = cap; });
 }
 function autoSpread() {
-  const day = $("date").value;
-  const { cap, suggest } = estimate();
-  if (!dayOrders().length) { alert("Немає заявок на цю дату"); return; }
-  ensureSlots(suggest, cap);
-  dayOrders().forEach(o => o.truckId = null);
-  const groups = {};
-  dayOrders().forEach(o => { (groups[o.district] ||= []).push(o); });
-  const districts = Object.keys(groups).sort((a,b) => groups[b].length - groups[a].length);
-  const trucks = state.trucks.slice();
-  let ti = 0;
-  districts.forEach(d => {
-    groups[d].sort((a,b) => a.address.localeCompare(b.address, "uk"));
-    groups[d].forEach(o => {
-      let placed = false;
-      for (let k = 0; k < trucks.length; k++) {
-        const tr = trucks[(ti + k) % trucks.length];
-        const usedKg = state.orders.filter(x => x.date === day && x.truckId === tr.id).reduce((s,x)=>s+x.kg,0);
-        const usedN = state.orders.filter(x => x.date === day && x.truckId === tr.id).length;
-        const kgOk = !o.kg || usedKg + o.kg <= tr.cap;
-        const nOk = usedN < (estimate().per || 12);
-        if (kgOk && nOk) { o.truckId = tr.id; placed = true; break; }
-      }
-      if (!placed) {
-        const extra = { id: uid(), name: "Машина " + (state.trucks.length+1), cap, unassigned: true };
-        state.trucks.push(extra);
-        trucks.push(extra);
-        o.truckId = extra.id;
-      }
-      ti++;
+  try {
+    const day = $("date").value;
+    const list = dayOrders();
+    if (!list.length) { alert("Немає заявок на цю дату. Спочатку завантажте графік."); return; }
+    const { cap, suggest, per } = estimate();
+    ensureSlots(Math.max(suggest, 1), cap);
+    list.forEach(o => o.truckId = null);
+    const groups = {};
+    list.forEach(o => { (groups[o.district] ||= []).push(o); });
+    const districts = Object.keys(groups).sort((a,b) => groups[b].length - groups[a].length);
+    const trucks = state.trucks.slice();
+    districts.forEach(d => {
+      groups[d].sort((a,b) => String(a.address).localeCompare(String(b.address), "uk"));
+      groups[d].forEach(o => {
+        let placed = false;
+        for (let k = 0; k < trucks.length; k++) {
+          const tr = trucks[k];
+          const used = list.filter(x => x.truckId === tr.id);
+          const usedKg = used.reduce((s,x)=>s+(x.kg||0),0);
+          if ((o.kg && usedKg + o.kg > tr.cap) || used.length >= per) continue;
+          o.truckId = tr.id; placed = true; break;
+        }
+        if (!placed) {
+          const extra = { id: uid(), name: "Машина " + (state.trucks.length+1), cap, unassigned: true };
+          state.trucks.push(extra);
+          trucks.push(extra);
+          o.truckId = extra.id;
+        }
+      });
     });
-  });
-  save();
+    save();
+    alert("Роскидано " + list.length + " точок на " + new Set(list.map(o=>o.truckId)).size + " машин.");
+  } catch (err) {
+    alert("Помилка розкидання: " + err.message);
+  }
 }
+window.logickSpread = autoSpread;
 
 load();
 $("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
