@@ -60,14 +60,25 @@
         <div><label>Тоннаж машини за замовч., кг</label><input id="defaultCap" type="number" value="1500" /></div>
         <div><label>Оцінка</label><div class="hint" id="estimate">Спочатку вставте заявки</div></div>
       </div>
-      <label>Вставте список (один рядок — одна заявка)</label>
-      <textarea id="pack" placeholder="Клієнт; адреса; район; кг; примітка
-АТБ; вул. Оболонський проспект 16; Оболонь; 220
-Сільпо Вишневе; Святошинська 12; Вишневе; 180"></textarea>
-      <p class="muted">Розділювачі: крапка з комою, таб або |. Порядок: клієнт, адреса, район, кг, примітка. Район і кг можна не писати — район спробуємо взяти з адреси.</p>
+      <div class="row">
+        <div>
+          <label>Тиждень у таблиці</label>
+          <select id="weekBlock">
+            <option value="0">З (цей тиждень, перші 7 днів)</option>
+            <option value="1">П (наступний тиждень)</option>
+          </select>
+        </div>
+        <div>
+          <label>Точок на машину, якщо немає кг</label>
+          <input id="perTruck" type="number" value="12" min="4" />
+        </div>
+      </div>
+      <label>Скопіюйте з Excel графік (код, адреса, хрестики по днях) і вставте сюди</label>
+      <textarea id="pack" placeholder="Виділіть у файлі «Новий Графік» стовпці магазин + дні і Ctrl+C, потім Ctrl+V сюди"></textarea>
+      <p class="muted">Беремо рядки, де стоїть x у день обраної дати. Код магазину зберігається. Район визначається з адреси (Київ, Вишневе, Бровари…).</p>
       <div class="btns">
-        <button type="button" id="loadPack">Завантажити пакет</button>
-        <button type="button" class="ghost" id="autoBtn">Розкидати по тоннажу</button>
+        <button type="button" id="loadPack">Завантажити день із графіка</button>
+        <button type="button" class="ghost" id="autoBtn">Розкидати по машинах</button>
       </div>
       <details>
         <summary class="muted">Додати одну заявку вручну</summary>
@@ -121,13 +132,22 @@ const AREA = [
   ["святошин", "Святошинський"], ["борщаг", "Святошинський"], ["нивк", "Шевченківський"],
   ["солом", "Солом'янський"], ["відрадн", "Солом'янський"], ["чубаїв", "Солом'янський"],
   ["голосі", "Голосіївський"], ["теремк", "Голосіївський"], ["демиїв", "Голосіївський"],
-  ["вишнев", "Вишневе"], ["ірпін", "Ірпінь"], ["буча", "Буча"], ["бровар", "Бровари"],
-  ["бориспіль", "Бориспіль"], ["обухів", "Обухів"], ["васильк", "Васильків"], ["вишгород", "Вишгород"]
+  ["вишнев", "Вишневе"], ["ірпін", "Ірпінь"], ["ірпень", "Ірпінь"], ["буча", "Буча"], ["бровар", "Бровари"],
+  ["бориспіль", "Бориспіль"], ["обухів", "Обухів"], ["васильк", "Васильків"], ["вишгород", "Вишгород"],
+  ["гостомел", "Гостомель"], ["біла церк", "Біла Церква"], ["білогород", "Білогородка"],
+  ["софіївськ", "Софіївська Борщагівка"], ["петропавлівськ", "Петропавлівська Борщагівка"],
+  ["крюковщин", "Крюківщина"], ["чайк", "Чайки"], ["борщагівк", "Борщагівка"],
+  ["рівне", "Міжмісто"], ["терноп", "Міжмісто"], ["львів", "Міжмісто"], ["івано-фран", "Міжмісто"],
+  ["київ", "Київ"]
 ];
 function guessArea(text) {
   const s = (text || "").toLowerCase();
-  for (const [k, v] of AREA) if (s.includes(k)) return v;
-  return "Інше";
+  const city = s.split(",")[0].trim();
+  for (const [k, v] of AREA) {
+    if (v === "Міжмісто" && city.startsWith(k)) return v;
+    if (v !== "Міжмісто" && s.includes(k)) return v;
+  }
+  return city ? city.charAt(0).toUpperCase() + city.slice(1) : "Інше";
 }
 function load() {
   try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {}
@@ -139,21 +159,104 @@ function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
 function uid() { return Math.random().toString(36).slice(2, 9); }
 const $ = (id) => document.getElementById(id);
 
+const WD = ["нд","пн","вт","ср","чт","пт","сб"];
+function weekdayOf(dateStr) {
+  return WD[new Date(dateStr + "T12:00:00").getDay()];
+}
+function isMark(cell) {
+  return /^[xхXХ+✓✔*1]$/.test(String(cell || "").trim());
+}
+function splitRow(line) {
+  if (line.includes("\t")) return line.split("\t").map(s => s.trim());
+  if (line.includes(";")) return line.split(";").map(s => s.trim());
+  return line.split(/\s{2,}/).map(s => s.trim());
+}
+function headerDayIndex(headers, weekBlock, wd) {
+  const heads = headers.map(h => h.toLowerCase().replace(/\s+/g, " "));
+  const tagged = heads.map((h, i) => {
+    const day = (h.match(/пн|вт|ср|чт|пт|сб|нд|вс/) || [""])[0].replace("вс", "нд");
+    const week = h.includes("п |") || h.startsWith("п ") || /\bп\s*\|/.test(h) ? 1
+      : h.includes("з |") || h.startsWith("з ") || /\bз\s*\|/.test(h) ? 0 : null;
+    return { i, day, week, raw: h };
+  }).filter(x => x.day);
+  const prefer = tagged.filter(x => x.day === wd && (x.week === weekBlock || x.week === null));
+  if (prefer.length) {
+    const byWeek = prefer.filter(x => x.week === weekBlock);
+    return (byWeek[0] || prefer[weekBlock] || prefer[0]).i;
+  }
+  const onlyDays = tagged.filter(x => x.day === wd);
+  return onlyDays[weekBlock] ? onlyDays[weekBlock].i : (onlyDays[0] && onlyDays[0].i);
+}
+function parseStore(cells) {
+  let code = "", address = "";
+  const joined = cells.filter(Boolean);
+  if (!joined.length) return null;
+  if (/^\d{3,5}$/.test(joined[0])) {
+    code = joined[0];
+    address = joined[1] || "";
+  } else {
+    const m = joined[0].match(/^(\d{3,5})\s+(.+)$/);
+    if (m) { code = m[1]; address = m[2]; }
+    else { address = joined[0]; }
+  }
+  address = address.replace(/^магазин\s+/i, "").trim();
+  if (!address) return null;
+  const district = guessArea(address);
+  return {
+    client: (code ? code + " " : "") + address.split(",")[0].trim(),
+    address,
+    district,
+    kg: 0,
+    note: code ? "код " + code : "",
+    places: "",
+    code
+  };
+}
+function parseSchedule(text, dateStr, weekBlock) {
+  const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g, " ").trimEnd()).filter(l => l.trim());
+  if (!lines.length) return [];
+  const wd = weekdayOf(dateStr);
+  let headerIdx = 0;
+  let col = null;
+  for (let i = 0; i < Math.min(lines.length, 5); i++) {
+    const cells = splitRow(lines[i]);
+    const idx = headerDayIndex(cells, weekBlock, wd);
+    if (idx != null) { headerIdx = i; col = idx; break; }
+  }
+  const out = [];
+  const start = col == null ? 0 : headerIdx + 1;
+  for (let i = start; i < lines.length; i++) {
+    const cells = splitRow(lines[i]);
+    if (!cells.join("").trim()) continue;
+    if (/магазин|завод/i.test(cells.join(" ")) && cells.length < 3) continue;
+    if (col != null && !isMark(cells[col])) continue;
+    const storeCells = col != null ? cells.slice(0, Math.min(col, 3)) : cells;
+    const rec = parseStore(storeCells.length ? storeCells : cells);
+    if (rec) out.push(rec);
+  }
+  return { rows: out, weekday: wd, col };
+}
 function parseLine(line) {
-  let parts = line.split(/\t|;|\|/ ).map(s => s.trim()).filter(Boolean);
-  if (parts.length === 1) parts = line.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+  const cells = splitRow(line);
+  const store = parseStore(cells);
+  if (store && cells.length <= 5) {
+    const kgCell = cells.find(c => /^\d{2,5}$/.test(c) && Number(c) < 4000 && Number(c) > 20 && !/^\d{4}$/.test(c) === false);
+    return store;
+  }
+  let parts = cells.filter(Boolean);
   if (!parts.length) return null;
-  let kg = 0, note = "", district = "", client = "", address = "";
-  const nums = parts.map((p,i) => ({i, n: Number(String(p).replace(",", ".").replace(/[^\d.]/g,""))})).filter(x => x.n > 0 && /[\d]/.test(parts[x.i]));
+  let kg = 0;
+  const nums = parts.map((p,i) => ({i, n: Number(String(p).replace(",", "."))})).filter(x => x.n > 0);
   if (nums.length) {
     const last = nums[nums.length-1];
     if (last.n < 20000) { kg = Math.round(last.n); parts.splice(last.i, 1); }
   }
-  client = parts[0] || "Точка";
-  address = parts[1] || parts[0] || "";
-  district = parts[2] || guessArea(address + " " + client);
-  note = parts.slice(3).join(" ");
-  return { client, address, district, kg, note, places: "" };
+  return {
+    client: parts[0] || "Точка",
+    address: parts[1] || parts[0] || "",
+    district: parts[2] || guessArea((parts[1]||"") + " " + (parts[0]||"")),
+    kg, note: parts.slice(3).join(" "), places: ""
+  };
 }
 
 function dayOrders() {
@@ -162,14 +265,15 @@ function dayOrders() {
 function estimate() {
   const list = dayOrders();
   const cap = Number($("defaultCap").value || 1500) || 1500;
+  const per = Number($("perTruck").value || 12) || 12;
   const kg = list.reduce((s,o)=>s+o.kg,0);
-  const byNeed = kg > 0 ? Math.ceil(kg / cap) : 0;
-  const areas = new Set(list.map(o => o.district)).size;
-  const suggest = Math.max(byNeed || (list.length ? 1 : 0), list.length ? 1 : 0);
+  const byKg = kg > 0 ? Math.ceil(kg / cap) : 0;
+  const byStops = list.length ? Math.ceil(list.length / per) : 0;
+  const suggest = Math.max(byKg, byStops, list.length ? 1 : 0);
   $("estimate").textContent = list.length
-    ? `${list.length} заявок, ${kg||"?"} кг → орієнтовно ${suggest} авт. по ${cap} кг`
-    : "Спочатку вставте заявки";
-  return { cap, kg, suggest };
+    ? `${list.length} точок${kg ? ", " + kg + " кг" : ""} → орієнтовно ${suggest} авт. (${per} точок / ${cap} кг)`
+    : "Вставте графік з Excel";
+  return { cap, kg, suggest, per };
 }
 function ensureSlots(n, cap) {
   while (state.trucks.length < n) {
@@ -194,8 +298,11 @@ function autoSpread() {
       let placed = false;
       for (let k = 0; k < trucks.length; k++) {
         const tr = trucks[(ti + k) % trucks.length];
-        const used = state.orders.filter(x => x.date === day && x.truckId === tr.id).reduce((s,x)=>s+x.kg,0);
-        if (!o.kg || used + o.kg <= tr.cap) { o.truckId = tr.id; placed = true; break; }
+        const usedKg = state.orders.filter(x => x.date === day && x.truckId === tr.id).reduce((s,x)=>s+x.kg,0);
+        const usedN = state.orders.filter(x => x.date === day && x.truckId === tr.id).length;
+        const kgOk = !o.kg || usedKg + o.kg <= tr.cap;
+        const nOk = usedN < (estimate().per || 12);
+        if (kgOk && nOk) { o.truckId = tr.id; placed = true; break; }
       }
       if (!placed) {
         const extra = { id: uid(), name: "Машина " + (state.trucks.length+1), cap, unassigned: true };
@@ -216,13 +323,17 @@ $("cap").value = state.defaultCap || 1500;
 
 $("loadPack").onclick = () => {
   const day = $("date").value;
-  const lines = $("pack").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  if (!lines.length) { alert("Вставте пакет"); return; }
+  const raw = $("pack").value;
+  if (!raw.trim()) { alert("Вставте графік з Excel"); return; }
+  const weekBlock = Number($("weekBlock").value || 0);
+  const parsed = parseSchedule(raw, day, weekBlock);
+  const rows = parsed.rows || [];
+  if (!rows.length) { alert("Не знайшов хрестики на цей день. Перевірте дату і тиждень З/П."); return; }
+  const have = new Set(dayOrders().map(o => o.address + "|" + o.note));
   let n = 0;
-  lines.forEach(line => {
-    if (/клієнт|клиент|адреса|адрес|район/i.test(line) && n === 0) return;
-    const p = parseLine(line);
-    if (!p) return;
+  rows.forEach(p => {
+    const k = p.address + "|" + (p.note||"");
+    if (have.has(k)) return;
     state.orders.push({ id: uid(), date: day, truckId: null, ...p });
     n++;
   });
@@ -232,7 +343,7 @@ $("loadPack").onclick = () => {
   ensureSlots(suggest, cap);
   $("pack").value = "";
   save();
-  alert("Завантажено " + n + " заявок. Потрібно орієнтовно " + suggest + " машин по " + cap + " кг. Потім натисніть «Розкидати».");
+  alert("На " + parsed.weekday.toUpperCase() + " завантажено " + n + " точок. Орієнтовно " + suggest + " машин. Потім «Розкидати» і впишіть водіїв.");
 };
 $("autoBtn").onclick = autoSpread;
 $("defaultCap").onchange = () => { state.defaultCap = Number($("defaultCap").value||1500); $("cap").value = state.defaultCap; save(); };
