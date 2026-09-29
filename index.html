@@ -87,6 +87,7 @@
             <div><label>Район</label><input id="district" list="districts" /></div>
             <div><label>Клієнт</label><input id="client" list="clients" /></div>
           </div>
+          <datalist id="clients"></datalist>
           <datalist id="districts">
             <option>Голосіївський</option><option>Дарницький</option><option>Деснянський</option>
             <option>Дніпровський</option><option>Оболонський</option><option>Печерський</option>
@@ -391,7 +392,7 @@ function render() {
   estimate();
   const day = $("date").value;
   const clients = [...new Set(state.orders.map(o => o.client))].sort();
-  $("clients").innerHTML = clients.map(c => `<option value="${c}"></option>`).join("");
+  if ($("clients")) $("clients").innerHTML = clients.map(c => `<option value="${c.replace(/"/g,"")}"></option>`).join("");
   const queued = state.orders.filter(o => o.date === day && !o.truckId);
   $("queue").innerHTML = queued.length ? `<table><tr><th>Район</th><th>Точка</th><th>кг</th><th></th></tr>${
     queued.map(o => `<tr><td>${o.district}</td><td><b>${o.client}</b><div class="muted">${o.address}</div></td><td>${o.kg||"—"}</td>
