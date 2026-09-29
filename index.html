@@ -60,6 +60,8 @@
         <div><label>Тоннаж машини за замовч., кг</label><input id="defaultCap" type="number" value="1500" /></div>
         <div><label>Оцінка</label><div class="hint" id="estimate">Спочатку вставте заявки</div></div>
       </div>
+      <label>Склад / старт усіх машин</label>
+      <input id="depot" value="Столичне шосе, 100, Київ" />
       <div class="row">
         <div>
           <label>Тиждень у таблиці</label>
@@ -122,7 +124,7 @@
   </main>
 <script>
 const KEY = "logick-v1";
-const state = { orders: [], trucks: [], date: "", defaultCap: 1500 };
+const state = { orders: [], trucks: [], date: "", defaultCap: 1500, depot: "Столичне шосе, 100, Київ" };
 const AREA = [
   ["оболон", "Оболонський"], ["мінськ", "Оболонський"], ["героїв дніп", "Оболонський"],
   ["троєщин", "Деснянський"], ["лісов", "Деснянський"], ["братислав", "Дніпровський"],
@@ -155,6 +157,7 @@ function load() {
   if (!state.orders) state.orders = [];
   if (!state.trucks) state.trucks = [];
   if (!state.defaultCap) state.defaultCap = 1500;
+  if (!state.depot) state.depot = "Столичне шосе, 100, Київ";
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
 function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -325,6 +328,8 @@ load();
 $("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
 $("defaultCap").value = state.defaultCap || 1500;
 $("cap").value = state.defaultCap || 1500;
+$("depot").value = state.depot || "Столичне шосе, 100, Київ";
+$("depot").onchange = () => { state.depot = $("depot").value.trim(); save(); };
 
 $("loadPack").onclick = () => {
   const day = $("date").value;
@@ -384,9 +389,13 @@ $("clearDay").onclick = () => {
 $("printBtn").onclick = () => window.print();
 $("date").onchange = () => { state.date = $("date").value; save(); };
 
+function depotAddr() {
+  return ($("depot") && $("depot").value.trim()) || state.depot || "Столичне шосе, 100, Київ";
+}
 function mapsLink(list) {
-  if (!list.length) return "";
-  return "https://www.google.com/maps/dir/" + list.map(o => encodeURIComponent(o.address + ", Київ")).join("/");
+  const start = depotAddr();
+  const pts = [start].concat(list.map(o => /київ|киев|вишнев|бровар|ірп|буча|борисп/i.test(o.address) ? o.address : (o.address + ", Київ")));
+  return "https://www.google.com/maps/dir/" + pts.map(a => encodeURIComponent(a)).join("/");
 }
 function render() {
   estimate();
@@ -413,6 +422,7 @@ function render() {
         <input class="noprint" data-rename="${t.id}" value="${t.name}" style="width:180px;display:inline-block;padding:4px 6px" />
         <button class="ghost noprint" data-drop="${t.id}">прибрати авто</button>
       </h3>
+      <div class="stop"><b>0</b><div><div><b>Склад</b></div><div>${depotAddr()}</div><div class="muted">старт маршруту</div></div></div>
       ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div>
         <div><b>${o.client}</b> · ${o.district}</div>
         <div>${o.address}</div>
