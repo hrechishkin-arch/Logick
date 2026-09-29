@@ -11,14 +11,15 @@
     header { padding: 18px 20px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
     header h1 { margin: 0; font-size: 22px; letter-spacing: .04em; }
     header span { color: #666; font-size: 13px; }
-    main { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; padding: 12px 20px 40px; }
+    main { display: grid; grid-template-columns: 1.05fr .95fr; gap: 16px; padding: 12px 20px 40px; }
     @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
     h2 { margin: 0 0 10px; font-size: 15px; }
     label { display: block; font-size: 12px; color: #666; margin: 8px 0 4px; }
     input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
-    textarea { min-height: 70px; resize: vertical; }
+    textarea { min-height: 140px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
     button { border: 0; background: var(--acc); color: #fff; border-radius: 10px; padding: 9px 12px; font-weight: 650; cursor: pointer; }
     button.ghost { background: #ece7dc; color: #222; }
     button.danger { background: #7a2e2e; }
@@ -31,8 +32,10 @@
     .stop b { min-width: 18px; }
     .muted { color: #777; font-size: 12px; }
     .tag { display: inline-block; background: #ece7dc; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
+    .hint { background: #ece7dc; border-radius: 10px; padding: 10px; font-size: 13px; margin-top: 8px; }
+    details { margin-top: 12px; }
     @media print {
-      header .noprint, .noprint, form { display: none !important; }
+      header .noprint, .noprint, form, details, #pack { display: none !important; }
       main { display: block; }
       .truck { break-inside: avoid; }
     }
@@ -42,7 +45,7 @@
   <header>
     <div>
       <h1>LOGICK</h1>
-      <span>План развоза · Киев и область · данные только на этом компьютере</span>
+      <span>Пакет заявок → оцінка машин → маршрут по районах</span>
     </div>
     <div class="btns noprint">
       <button class="ghost" id="printBtn">Печать водителям</button>
@@ -51,114 +54,209 @@
   </header>
   <main>
     <section class="card noprint">
-      <h2>Заявка</h2>
-      <form id="orderForm">
-        <div class="row">
-          <div><label>Дата развоза</label><input id="date" type="date" required /></div>
-          <div><label>Район</label>
-            <input id="district" list="districts" placeholder="Оболонь, Вишневе…" required />
+      <h2>Пакет із 1С</h2>
+      <div class="row3">
+        <div><label>Дата розвозу</label><input id="date" type="date" required /></div>
+        <div><label>Тоннаж машини за замовч., кг</label><input id="defaultCap" type="number" value="1500" /></div>
+        <div><label>Оцінка</label><div class="hint" id="estimate">Спочатку вставте заявки</div></div>
+      </div>
+      <label>Вставте список (один рядок — одна заявка)</label>
+      <textarea id="pack" placeholder="Клієнт; адреса; район; кг; примітка
+АТБ; вул. Оболонський проспект 16; Оболонь; 220
+Сільпо Вишневе; Святошинська 12; Вишневе; 180"></textarea>
+      <p class="muted">Розділювачі: крапка з комою, таб або |. Порядок: клієнт, адреса, район, кг, примітка. Район і кг можна не писати — район спробуємо взяти з адреси.</p>
+      <div class="btns">
+        <button type="button" id="loadPack">Завантажити пакет</button>
+        <button type="button" class="ghost" id="autoBtn">Розкидати по тоннажу</button>
+      </div>
+      <details>
+        <summary class="muted">Додати одну заявку вручну</summary>
+        <form id="orderForm">
+          <div class="row">
+            <div><label>Район</label><input id="district" list="districts" /></div>
+            <div><label>Клієнт</label><input id="client" list="clients" /></div>
           </div>
-        </div>
-        <datalist id="districts">
-          <option>Голосіївський</option><option>Дарницький</option><option>Деснянський</option>
-          <option>Дніпровський</option><option>Оболонський</option><option>Печерський</option>
-          <option>Подільський</option><option>Святошинський</option><option>Солом'янський</option>
-          <option>Шевченківський</option><option>Бровари</option><option>Вишневе</option>
-          <option>Ірпінь</option><option>Буча</option><option>Бориспіль</option>
-          <option>Обухів</option><option>Васильків</option><option>Вишгород</option>
-        </datalist>
-        <label>Точка / клієнт</label>
-        <input id="client" list="clients" required />
-        <datalist id="clients"></datalist>
-        <label>Адреса</label>
-        <input id="address" required />
-        <div class="row">
-          <div><label>Вага, кг</label><input id="kg" type="number" min="0" step="1" value="0" /></div>
-          <div><label>Обʼєм / місць</label><input id="places" placeholder="2 місця" /></div>
-        </div>
-        <label>Примітка з 1С</label>
-        <textarea id="note"></textarea>
-        <div class="btns">
-          <button type="submit">Додати заявку</button>
-          <button type="button" class="ghost" id="autoBtn">Розкидати по машинах</button>
-        </div>
-      </form>
-      <h2 style="margin-top:18px">Черга заявок</h2>
+          <datalist id="districts">
+            <option>Голосіївський</option><option>Дарницький</option><option>Деснянський</option>
+            <option>Дніпровський</option><option>Оболонський</option><option>Печерський</option>
+            <option>Подільський</option><option>Святошинський</option><option>Солом'янський</option>
+            <option>Шевченківський</option><option>Бровари</option><option>Вишневе</option>
+            <option>Ірпінь</option><option>Буча</option><option>Бориспіль</option>
+            <option>Обухів</option><option>Васильків</option><option>Вишгород</option>
+          </datalist>
+          <label>Адреса</label><input id="address" />
+          <div class="row">
+            <div><label>Вага, кг</label><input id="kg" type="number" min="0" value="0" /></div>
+            <div><label>Примітка</label><input id="note" /></div>
+          </div>
+          <div class="btns"><button type="submit">Додати</button></div>
+        </form>
+      </details>
+      <h2 style="margin-top:16px">Черга заявок</h2>
       <div id="queue"></div>
     </section>
     <section class="card">
-      <h2>Машини до 1.5 т</h2>
+      <h2>Машини</h2>
+      <p class="muted noprint">Спочатку пакет рахує, скільки авто треба. Потім назвіть водія. Ліміт кг можна змінити на кожній машині.</p>
       <form id="truckForm" class="noprint">
         <div class="row">
           <div><label>Водій / авто</label><input id="truckName" placeholder="Іван, AA 0000 AA" required /></div>
           <div><label>Ліміт кг</label><input id="cap" type="number" value="1500" /></div>
         </div>
-        <div class="btns"><button type="submit">Додати машину</button></div>
+        <div class="btns"><button type="submit">Додати / призначити машину</button></div>
       </form>
       <div id="trucks"></div>
     </section>
   </main>
 <script>
 const KEY = "logick-v1";
-const state = { orders: [], trucks: [], date: "" };
+const state = { orders: [], trucks: [], date: "", defaultCap: 1500 };
+const AREA = [
+  ["оболон", "Оболонський"], ["мінськ", "Оболонський"], ["героїв дніп", "Оболонський"],
+  ["троєщин", "Деснянський"], ["лісов", "Деснянський"], ["братислав", "Дніпровський"],
+  ["дарниц", "Дарницький"], ["позняк", "Дарницький"], ["осжорн", "Дарницький"], ["харківськ", "Дарницький"],
+  ["лівобереж", "Дніпровський"], ["русанів", "Дніпровський"], ["березняк", "Дніпровський"],
+  ["печер", "Печерський"], ["хрещатик", "Шевченківський"], ["лукъян", "Шевченківський"], ["лукъян", "Шевченківський"],
+  ["поділ", "Подільський"], ["куренів", "Подільський"], ["виноградар", "Подільський"],
+  ["святошин", "Святошинський"], ["борщаг", "Святошинський"], ["нивк", "Шевченківський"],
+  ["солом", "Солом'янський"], ["відрадн", "Солом'янський"], ["чубаїв", "Солом'янський"],
+  ["голосі", "Голосіївський"], ["теремк", "Голосіївський"], ["демиїв", "Голосіївський"],
+  ["вишнев", "Вишневе"], ["ірпін", "Ірпінь"], ["буча", "Буча"], ["бровар", "Бровари"],
+  ["бориспіль", "Бориспіль"], ["обухів", "Обухів"], ["васильк", "Васильків"], ["вишгород", "Вишгород"]
+];
+function guessArea(text) {
+  const s = (text || "").toLowerCase();
+  for (const [k, v] of AREA) if (s.includes(k)) return v;
+  return "Інше";
+}
 function load() {
   try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {}
   if (!state.orders) state.orders = [];
   if (!state.trucks) state.trucks = [];
+  if (!state.defaultCap) state.defaultCap = 1500;
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
 function uid() { return Math.random().toString(36).slice(2, 9); }
 const $ = (id) => document.getElementById(id);
 
-$("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
+function parseLine(line) {
+  let parts = line.split(/\t|;|\|/ ).map(s => s.trim()).filter(Boolean);
+  if (parts.length === 1) parts = line.split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  let kg = 0, note = "", district = "", client = "", address = "";
+  const nums = parts.map((p,i) => ({i, n: Number(String(p).replace(",", ".").replace(/[^\d.]/g,""))})).filter(x => x.n > 0 && /[\d]/.test(parts[x.i]));
+  if (nums.length) {
+    const last = nums[nums.length-1];
+    if (last.n < 20000) { kg = Math.round(last.n); parts.splice(last.i, 1); }
+  }
+  client = parts[0] || "Точка";
+  address = parts[1] || parts[0] || "";
+  district = parts[2] || guessArea(address + " " + client);
+  note = parts.slice(3).join(" ");
+  return { client, address, district, kg, note, places: "" };
+}
 
+function dayOrders() {
+  return state.orders.filter(o => o.date === $("date").value);
+}
+function estimate() {
+  const list = dayOrders();
+  const cap = Number($("defaultCap").value || 1500) || 1500;
+  const kg = list.reduce((s,o)=>s+o.kg,0);
+  const byNeed = kg > 0 ? Math.ceil(kg / cap) : 0;
+  const areas = new Set(list.map(o => o.district)).size;
+  const suggest = Math.max(byNeed || (list.length ? 1 : 0), list.length ? 1 : 0);
+  $("estimate").textContent = list.length
+    ? `${list.length} заявок, ${kg||"?"} кг → орієнтовно ${suggest} авт. по ${cap} кг`
+    : "Спочатку вставте заявки";
+  return { cap, kg, suggest };
+}
+function ensureSlots(n, cap) {
+  while (state.trucks.length < n) {
+    state.trucks.push({ id: uid(), name: "Машина " + (state.trucks.length+1), cap, unassigned: true });
+  }
+  state.trucks.forEach(t => { if (!t.cap) t.cap = cap; });
+}
+function autoSpread() {
+  const day = $("date").value;
+  const { cap, suggest } = estimate();
+  if (!dayOrders().length) { alert("Немає заявок на цю дату"); return; }
+  ensureSlots(suggest, cap);
+  dayOrders().forEach(o => o.truckId = null);
+  const groups = {};
+  dayOrders().forEach(o => { (groups[o.district] ||= []).push(o); });
+  const districts = Object.keys(groups).sort((a,b) => groups[b].length - groups[a].length);
+  const trucks = state.trucks.slice();
+  let ti = 0;
+  districts.forEach(d => {
+    groups[d].sort((a,b) => a.address.localeCompare(b.address, "uk"));
+    groups[d].forEach(o => {
+      let placed = false;
+      for (let k = 0; k < trucks.length; k++) {
+        const tr = trucks[(ti + k) % trucks.length];
+        const used = state.orders.filter(x => x.date === day && x.truckId === tr.id).reduce((s,x)=>s+x.kg,0);
+        if (!o.kg || used + o.kg <= tr.cap) { o.truckId = tr.id; placed = true; break; }
+      }
+      if (!placed) {
+        const extra = { id: uid(), name: "Машина " + (state.trucks.length+1), cap, unassigned: true };
+        state.trucks.push(extra);
+        trucks.push(extra);
+        o.truckId = extra.id;
+      }
+      ti++;
+    });
+  });
+  save();
+}
+
+load();
+$("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
+$("defaultCap").value = state.defaultCap || 1500;
+$("cap").value = state.defaultCap || 1500;
+
+$("loadPack").onclick = () => {
+  const day = $("date").value;
+  const lines = $("pack").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  if (!lines.length) { alert("Вставте пакет"); return; }
+  let n = 0;
+  lines.forEach(line => {
+    if (/клієнт|клиент|адреса|адрес|район/i.test(line) && n === 0) return;
+    const p = parseLine(line);
+    if (!p) return;
+    state.orders.push({ id: uid(), date: day, truckId: null, ...p });
+    n++;
+  });
+  state.date = day;
+  state.defaultCap = Number($("defaultCap").value||1500);
+  const { suggest, cap } = estimate();
+  ensureSlots(suggest, cap);
+  $("pack").value = "";
+  save();
+  alert("Завантажено " + n + " заявок. Потрібно орієнтовно " + suggest + " машин по " + cap + " кг. Потім натисніть «Розкидати».");
+};
+$("autoBtn").onclick = autoSpread;
+$("defaultCap").onchange = () => { state.defaultCap = Number($("defaultCap").value||1500); $("cap").value = state.defaultCap; save(); };
 $("orderForm").onsubmit = (e) => {
   e.preventDefault();
-  state.date = $("date").value;
-  const o = {
-    id: uid(),
-    date: $("date").value,
-    district: $("district").value.trim(),
-    client: $("client").value.trim(),
-    address: $("address").value.trim(),
-    kg: Number($("kg").value||0),
-    places: $("places").value.trim(),
-    note: $("note").value.trim(),
-    truckId: null
-  };
-  state.orders.push(o);
-  $("address").value = $("note").value = $("places").value = "";
-  $("kg").value = 0;
+  if (!$("address").value && !$("client").value) return;
+  state.orders.push({
+    id: uid(), date: $("date").value, truckId: null,
+    district: $("district").value || guessArea($("address").value),
+    client: $("client").value || $("address").value,
+    address: $("address").value || $("client").value,
+    kg: Number($("kg").value||0), places: "", note: $("note").value.trim()
+  });
+  $("address").value = $("client").value = $("note").value = "";
   save();
 };
 $("truckForm").onsubmit = (e) => {
   e.preventDefault();
-  state.trucks.push({ id: uid(), name: $("truckName").value.trim(), cap: Number($("cap").value||1500) });
+  const name = $("truckName").value.trim();
+  const cap = Number($("cap").value || $("defaultCap").value || 1500);
+  const slot = state.trucks.find(t => t.unassigned || /^Машина \d+$/.test(t.name));
+  if (slot) { slot.name = name; slot.cap = cap; slot.unassigned = false; }
+  else state.trucks.push({ id: uid(), name, cap });
   $("truckName").value = "";
-  save();
-};
-$("autoBtn").onclick = () => {
-  const free = state.orders.filter(o => o.date === $("date").value);
-  free.forEach(o => o.truckId = null);
-  const byD = {};
-  free.forEach(o => { (byD[o.district] ||= []).push(o); });
-  const districts = Object.keys(byD).sort((a,b) => byD[b].length - byD[a].length);
-  const trucks = state.trucks.slice();
-  if (!trucks.length) { alert("Спочатку додайте машину"); return; }
-  let t = 0;
-  districts.forEach((d) => {
-    byD[d].forEach((o) => {
-      let guard = trucks.length;
-      while (guard--) {
-        const tr = trucks[t % trucks.length];
-        const used = state.orders.filter(x => x.truckId === tr.id).reduce((s,x)=>s+x.kg,0);
-        if (used + o.kg <= tr.cap || o.kg === 0) { o.truckId = tr.id; break; }
-        t++;
-      }
-      if (!o.truckId) o.truckId = trucks[t % trucks.length].id;
-      t++;
-    });
-  });
   save();
 };
 $("clearDay").onclick = () => {
@@ -172,10 +270,10 @@ $("date").onchange = () => { state.date = $("date").value; save(); };
 
 function mapsLink(list) {
   if (!list.length) return "";
-  const q = list.map(o => encodeURIComponent(o.address + ", Київ")).join("/");
-  return "https://www.google.com/maps/dir/" + q;
+  return "https://www.google.com/maps/dir/" + list.map(o => encodeURIComponent(o.address + ", Київ")).join("/");
 }
 function render() {
+  estimate();
   const day = $("date").value;
   const clients = [...new Set(state.orders.map(o => o.client))].sort();
   $("clients").innerHTML = clients.map(c => `<option value="${c}"></option>`).join("");
@@ -188,38 +286,41 @@ function render() {
   }</table>` : `<p class="muted">Немає вільних заявок на цю дату</p>`;
 
   $("trucks").innerHTML = state.trucks.map(t => {
-    const stops = state.orders.filter(o => o.date === day && o.truckId === t.id);
+    const stops = state.orders.filter(o => o.date === day && o.truckId === t.id)
+      .sort((a,b) => a.district.localeCompare(b.district,"uk") || a.address.localeCompare(b.address,"uk"));
     const kg = stops.reduce((s,o)=>s+o.kg,0);
     const over = kg > t.cap;
     return `<div class="truck">
       <h3>${t.name} <span class="tag">${kg} / ${t.cap} кг${over?" · перебір":""}</span>
         <span class="noprint muted">ліміт кг</span>
         <input class="noprint" data-cap="${t.id}" type="number" min="100" step="50" value="${t.cap}" style="width:90px;display:inline-block;padding:4px 6px" />
+        <input class="noprint" data-rename="${t.id}" value="${t.name}" style="width:180px;display:inline-block;padding:4px 6px" />
         <button class="ghost noprint" data-drop="${t.id}">прибрати авто</button>
       </h3>
       ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div>
         <div><b>${o.client}</b> · ${o.district}</div>
         <div>${o.address}</div>
-        <div class="muted">${o.kg?o.kg+" кг":""} ${o.places||""} ${o.note||""}</div>
+        <div class="muted">${o.kg?o.kg+" кг":""} ${o.note||""}</div>
         <div class="noprint"><button class="ghost" data-up="${o.id}">↑</button>
         <button class="ghost" data-down="${o.id}">↓</button>
         <button class="ghost" data-free="${o.id}">з машини</button></div>
-      </div></div>`).join("") || `<p class="muted">Порожня</p>`}
+      </div></div>`).join("") || `<p class="muted">Порожня — призначення водія</p>`}
       ${stops.length?`<p class="noprint"><a target="_blank" href="${mapsLink(stops)}">Маршрут у Google Maps</a></p>`:""}
     </div>`;
-  }).join("") || `<p class="muted">Додайте першу машину</p>`;
+  }).join("") || `<p class="muted">Після пакета з’являться слоти машин</p>`;
 
   document.querySelectorAll("[data-assign]").forEach(el => el.onchange = () => {
-    const o = state.orders.find(x => x.id === el.dataset.assign);
-    o.truckId = el.value || null; save();
+    state.orders.find(x => x.id === el.dataset.assign).truckId = el.value || null; save();
   });
   document.querySelectorAll("[data-del]").forEach(el => el.onclick = () => {
     state.orders = state.orders.filter(x => x.id !== el.dataset.del); save();
   });
   document.querySelectorAll("[data-cap]").forEach(el => el.onchange = () => {
-    const t = state.trucks.find(x => x.id === el.dataset.cap);
-    t.cap = Math.max(0, Number(el.value||0));
-    save();
+    state.trucks.find(x => x.id === el.dataset.cap).cap = Math.max(0, Number(el.value||0)); save();
+  });
+  document.querySelectorAll("[data-rename]").forEach(el => el.onchange = () => {
+    const t = state.trucks.find(x => x.id === el.dataset.rename);
+    t.name = el.value.trim() || t.name; t.unassigned = false; save();
   });
   document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
     state.orders.forEach(o => { if (o.truckId === el.dataset.drop) o.truckId = null; });
@@ -234,17 +335,12 @@ function render() {
 function move(id, dir) {
   const o = state.orders.find(x => x.id === id);
   const list = state.orders.filter(x => x.date === o.date && x.truckId === o.truckId);
-  const i = list.findIndex(x => x.id === id);
-  const j = i + dir;
+  const i = list.findIndex(x => x.id === id), j = i + dir;
   if (j < 0 || j >= list.length) return;
-  const a = state.orders.indexOf(list[i]);
-  const b = state.orders.indexOf(list[j]);
+  const a = state.orders.indexOf(list[i]), b = state.orders.indexOf(list[j]);
   [state.orders[a], state.orders[b]] = [state.orders[b], state.orders[a]];
   save();
 }
-load();
-if (state.date) $("date").value = state.date;
-else $("date").value = new Date(Date.now()+86400000).toISOString().slice(0,10);
 render();
 </script>
 </body>
