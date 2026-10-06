@@ -55,7 +55,6 @@
   </div>
   <div class="tabs">
     <button class="on" data-tab="day">День</button>
-    <button data-tab="week">Неделя</button>
     <button data-tab="month">Месяц</button>
     <button data-tab="trip">Командировка</button>
   </div>
@@ -73,11 +72,6 @@
       <div><label>Точек на машину</label><input id="perTruck" type="number" value="12" min="4" /></div>
       <div><label>Лимит км</label><input id="kmLimit" type="number" value="120" /></div>
     </div>
-    <label>Неделя в таблице</label>
-    <select id="weekBlock">
-      <option value="0">З — этот</option>
-      <option value="1">П — следующий</option>
-    </select>
     <label>Вставьте график из Excel</label>
     <textarea id="pack" placeholder="Скопируйте из Excel вместе с шапкой: Заказ покупателя, Организация, Контрагент, Сумма, Дата отгрузки, Магазин"></textarea>
     <div class="btns">
@@ -96,14 +90,11 @@
       <h2 id="boardTitle">Машины дня</h2>
       <button class="acc" id="addTruckBtn">+ машина</button>
     </div>
-    <p class="muted">День и неделя не смешиваются. Командировка не чистится кнопкой дня.</p>
+    <p class="muted">Командировка не чистится кнопкой дня.</p>
     <div id="board"></div>
   </section>
   <section class="card">
-    <h2>Неделя заранее</h2>
-    <div class="week" id="weekStrip"></div>
-    <p class="muted">Постоянные клиенты по датам. «Очистить день» их не трогает.</p>
-    <h2 style="margin-top:14px">Командировка</h2>
+    <h2>Командировка</h2>
     <p class="muted">Другой регион, только вручную. У каждой машины своя очистка.</p>
     <button id="gotoTrip">Открыть командировку</button>
   </section>
@@ -281,7 +272,7 @@ function parseSchedule(text, dateStr, weekBlock) {
   }
   return { rows, wd, col };
 }
-function lane() { return state.tab === "trip" ? "trip" : state.tab === "week" ? "week" : "day"; }
+function lane() { return state.tab === "trip" ? "trip" : "day"; }
 function activeDate() { return state.tab === "trip" ? "trip" : $("date").value; }
 function dayOrders(l = lane(), d = activeDate()) {
   return state.orders.filter(o => o.lane === l && (l === "trip" || o.date === d));
@@ -300,7 +291,7 @@ $("loadPack").onclick = () => {
   let rows = orders;
   let label = day;
   if (orders === null) {
-    const parsed = parseSchedule(raw, day, Number($("weekBlock").value || 0));
+    const parsed = parseSchedule(raw, day, 0);
     rows = parsed.rows.map(r => ({ ...r, date: day }));
     label = parsed.wd.toUpperCase() + " " + day;
   }
@@ -364,7 +355,7 @@ $("addTruckBtn").onclick = () => {
 };
 $("clearDay").onclick = () => {
   const d = $("date").value;
-  if (!confirm("Убрать только дневную развозку на " + d + "? Неделя и командировка останутся.")) return;
+  if (!confirm("Убрать только дневную развозку на " + d + "? Командировка останется.")) return;
   state.orders = state.orders.filter(o => !(o.lane === "day" && o.date === d));
   state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
   save();
@@ -398,7 +389,7 @@ function localISO(d) {
 }
 function render() {
   const l = lane(), d = activeDate();
-  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : state.showDate ? "Машины на " + d : l === "trip" ? "Командировка" : l === "week" ? "Машины на " + d : "Машины дня";
+  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : "Машины на " + d;
   const list = dayOrders();
   const loose = state.orders.filter(o => o.lane === l && !o.truckId && (l === "trip" || o.date !== d));
   const basket = list.filter(o => !o.address).concat(loose.filter(o => !o.address));
@@ -407,14 +398,12 @@ function render() {
   $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
   const cells = monthCells();
-  $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
   if (state.tab === "month") {
     const names = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
     const head = cells.slice(0,7).map(c => `<div class="muted" style="${c.tone==="mon"?"color:#8a6a00":c.tone==="weekend"?"color:#2f6b32":""}">${names[c.wd]}</div>`).join("");
     const weeks = [1,2,3,4,5].map(n => {
       const days = cells.filter(c => c.weekNo === n).map(c => `<div class="daycell ${c.tone}"><b>${c.label}</b>
         <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
-        <button class="m" data-open="${c.iso}" data-lane="week">заранее: ${c.weekTrucks.length} маш.</button>
         <button class="m" data-open="${c.iso}" data-lane="trip">командировка: ${c.trips.length} маш.</button>
       </div>`).join("");
       return `<div class="muted" style="margin:10px 0 4px">Неделя ${n}</div><div class="cal">${head}${days}</div>`;
@@ -425,7 +414,8 @@ function render() {
       state.date = el.dataset.open;
       state.tab = el.dataset.lane || "day";
       state.showDate = state.tab !== "trip";
-      document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === state.tab));
+      if (state.tab === "week") state.tab = "day";
+document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === state.tab));
       save();
     });
     return;
@@ -438,7 +428,7 @@ function render() {
     const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
     const over = km > (t.kmLimit||120);
     return `<div class="truck">
-      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag ${over?"bad":""}">${t.lane==="trip"?"командировка":t.lane==="week"?"неделя":"день"} · ${stops.length} точ. · ${km}/${t.kmLimit||120} км · ${docs} накл. · ${money(sum)}</span></div>
+      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag ${over?"bad":""}">${t.lane==="trip"?"командировка":"день"} · ${stops.length} точ. · ${km}/${t.kmLimit||120} км · ${docs} накл. · ${money(sum)}</span></div>
       <div class="row">
         <input data-rename="${t.id}" value="${String(t.name||"").replaceAll('"','')}" placeholder="Название машины" />
         <input data-zone="${t.id}" value="${t.zone||""}" placeholder="Район или пункт" list="zones" />
