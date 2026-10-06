@@ -71,7 +71,7 @@
       <option value="1">П — следующий</option>
     </select>
     <label>Вставьте график из Excel</label>
-    <textarea id="pack" placeholder="Код, адрес и столбцы дней с крестиками"></textarea>
+    <textarea id="pack" placeholder="Скопируйте из Excel вместе с шапкой: Заказ покупателя, Организация, Контрагент, Сумма, Дата отгрузки, Магазин"></textarea>
     <div class="btns">
       <button class="acc" id="loadPack">Загрузить этот день</button>
       <button id="autoBtn">Разложить по районам</button>
@@ -116,7 +116,9 @@ const AREA = [
   ["вишнев","Вишнёвое"],["вишнёв","Вишнёвое"],["ирпен","Ирпень"],["ірпін","Ирпень"],["буча","Буча"],
   ["бровар","Бровары"],["бориспол","Борисполь"],["бориспіль","Борисполь"],["обухов","Обухов"],["обухів","Обухов"],
   ["васильков","Васильков"],["васильк","Васильков"],["вышгород","Вышгород"],["вишгород","Вышгород"],
-  ["белая церк","Белая Церковь"],["біла церк","Белая Церковь"],["гостомел","Гостомель"],["боярк","Боярка"]
+  ["кольцов","Святошинский"],["кільцев","Святошинский"],["кустанай","Дарницкий"],["печенеж","Днепровский"],["печеніж","Днепровский"],
+  ["науки","Голосеевский"],["кириллов","Подольский"],["кирилів","Подольский"],["чорнобиль","Святошинский"],["чернобыл","Святошинский"],["білич","Святошинский"],["билич","Святошинский"],
+  ["українк","Украинка"],["украинк","Украинка"]
 ];
 const WD = ["вс","пн","вт","ср","чт","пт","сб"];
 const WEEK_POS = {пн:0,вт:1,ср:2,чт:3,пт:4,сб:5,вс:6,нд:6};
@@ -172,7 +174,61 @@ function parseStore(cells) {
     kg: 0, docs: 1, sum: 0, note: code ? "код " + code : ""
   };
 }
-function parseSchedule(text, dateStr, weekBlock) {
+function parseMoney(s) {
+  const n = Number(String(s || "").replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+}
+function parseShipDate(s) {
+  const m = String(s || "").match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+function extractAddress(shop) {
+  const text = String(shop || "").trim();
+  if (!text) return "";
+  const paren = text.match(/\(([^)]+)\)/);
+  const inner = paren ? paren[1] : text;
+  const hasStreet = /вул|бул|пр-т|просп|пров|шосе|наб|площа|,\s*\d|\d/.test(inner) && !/^\s*(рц|рц)\s*$/i.test(inner);
+  if (/^\s*(рц)\s*$/i.test(inner) || (!paren && !hasStreet)) return "";
+  if (paren && !/вул|бул|пр-т|просп|шосе|\d/.test(inner)) return "";
+  return inner.replace(/\s+/g, " ").trim();
+}
+function parseOrders(text, onlyDate) {
+  const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g, " ").trimEnd()).filter(l => l.trim());
+  if (!lines.length) return [];
+  const head = splitRow(lines[0]).map(h => h.toLowerCase());
+  const col = (name) => head.findIndex(h => h.includes(name));
+  const iOrder = col("заказ");
+  const iOrg = col("организа");
+  const iClient = col("контраг");
+  const iSum = col("сумм");
+  const iWho = col("ответ");
+  const iDate = col("отгруз");
+  const iStatus = col("статус");
+  const iShop = col("магаз");
+  if (iShop < 0 || iDate < 0) return null;
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = splitRow(lines[i]);
+    if (!c.join("").trim()) continue;
+    const date = parseShipDate(c[iDate]);
+    if (onlyDate && date && date !== onlyDate) continue;
+    const shop = c[iShop] || "";
+    const address = extractAddress(shop);
+    const client = (c[iClient] || shop || "Точка").trim();
+    rows.push({
+      client,
+      address,
+      zone: address ? guessZone(address + " " + shop) : "",
+      kg: 0,
+      docs: 1,
+      sum: parseMoney(c[iSum]),
+      note: [c[iOrder], c[iStatus], c[iWho]].filter(Boolean).join(" · "),
+      shop,
+      date: date || onlyDate
+    });
+  }
+  return rows;
+}
   const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g," ").trimEnd()).filter(l => l.trim());
   const wd = weekdayOf(dateStr);
   let header = -1, col = null;
@@ -205,14 +261,23 @@ function money(n) { return (Number(n)||0).toLocaleString("uk-UA") + " грн"; }
 
 $("loadPack").onclick = () => {
   const day = $("date").value;
-  const parsed = parseSchedule($("pack").value, day, Number($("weekBlock").value||0));
-  if (!parsed.rows.length) { alert("На этот день крестиков не нашёл. Проверьте дату и неделю З/П."); return; }
+  const raw = $("pack").value;
+  const orders = parseOrders(raw, day);
+  let rows = orders;
+  let label = day;
+  if (orders === null) {
+    const parsed = parseSchedule(raw, day, Number($("weekBlock").value || 0));
+    rows = parsed.rows.map(r => ({ ...r, date: day }));
+    label = parsed.wd.toUpperCase() + " " + day;
+  }
+  if (!rows || !rows.length) { alert("На эту дату строк не нашёл. Проверьте дату отгрузки или крестики в графике."); return; }
   state.orders = state.orders.filter(o => !(o.lane === "day" && o.date === day));
-  parsed.rows.forEach(p => state.orders.push({ id: uid(), lane: "day", date: day, truckId: null, ...p }));
+  rows.forEach(p => state.orders.push({ id: uid(), lane: "day", truckId: null, date: p.date || day, ...p }));
   state.date = day;
   $("pack").value = "";
   save();
-  alert(parsed.wd.toUpperCase() + " " + day + ": " + parsed.rows.length + " точек. Без адреса — в корзине.");
+  const noAddr = rows.filter(r => !r.address).length;
+  alert(label + ": " + rows.length + " заявок. Без адреса в корзине: " + noAddr + ".");
 };
 $("autoBtn").onclick = () => {
   const l = lane();
