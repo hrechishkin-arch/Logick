@@ -82,6 +82,8 @@
     <p class="muted" id="estimate"></p>
     <h2>Без адреса</h2>
     <div class="basket" id="basket"></div>
+    <h2 style="margin-top:12px">Командировка, вне области</h2>
+    <div class="basket" id="away"></div>
     <h2 style="margin-top:12px">Очередь дня</h2>
     <div id="queue"></div>
   </section>
@@ -125,6 +127,14 @@ const $ = (id) => document.getElementById(id);
 function load() { try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {} state.orders ||= []; state.trucks ||= []; }
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
 function uid() { return Math.random().toString(36).slice(2, 9); }
+const LOCAL = new Set([...KYIV, ...OBLAST, "Украинка", "Киев · район не определён"]);
+function outsideKyiv(o) {
+  if (!o || !o.address) return false;
+  if (LOCAL.has(o.zone)) return false;
+  const s = (o.address + " " + (o.zone || "")).toLowerCase();
+  if (s.includes("киев") || s.includes("київ") || s.includes("київськ")) return false;
+  return true;
+}
 function guessZone(text) {
   const s = (text || "").toLowerCase();
   for (const [k,v] of AREA) if (s.includes(k)) return v;
@@ -309,7 +319,7 @@ $("loadPack").onclick = () => {
     const key = orderKey(p.orderNo || p.note);
     if (key && have.has(key)) { skipped++; return; }
     if (key) have.add(key);
-    state.orders.push({ id: uid(), lane: destLane, truckId: null, date: destLane === "trip" ? day : (p.date || day), ...p, orderNo: key || p.orderNo || "" });
+    state.orders.push({ id: uid(), lane: outsideKyiv({ ...p, address: p.address, zone: p.zone }) ? "trip" : destLane, truckId: null, date: p.date || day, ...p, orderNo: key || p.orderNo || "" });
     added++;
   });
   state.date = day;
@@ -413,8 +423,11 @@ function render() {
     save();
   });
   const list = dayOrders();
-  const basket = list.filter(o => !o.truckId && (!o.address || o.basket));
-  const queued = list.filter(o => o.address && !o.truckId && !o.basket);
+  const away = state.orders.filter(o => !o.truckId && outsideKyiv(o));
+  const basket = list.filter(o => !o.truckId && (!o.address || o.basket) && !outsideKyiv(o));
+  const queued = list.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o));
+  const tripTrucks = state.trucks.filter(t => t.lane === "trip");
+  $("away").innerHTML = away.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || "без номера"}</b> · ${o.client}<div class="muted">${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в командировку…</option>${tripTrucks.map(t=>`<option value="${t.id}">${t.date || ""} ${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
   $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
