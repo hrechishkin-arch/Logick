@@ -139,6 +139,29 @@ function guessZone(text) {
   const city = (text || "").split(",")[0].trim();
   return city || "Без района";
 }
+const DEPOT = { lat: 50.368, lng: 30.452 };
+const COORDS = {
+  "Голосеевский":[50.40,30.52],"Дарницкий":[50.41,30.65],"Деснянский":[50.53,30.61],"Днепровский":[50.45,30.60],
+  "Оболонский":[50.51,30.50],"Печерский":[50.42,30.55],"Подольский":[50.47,30.51],"Святошинский":[50.46,30.36],
+  "Соломенский":[50.43,30.47],"Шевченковский":[50.46,30.50],"Вишнёвое":[50.39,30.37],"Ирпень":[50.52,30.25],
+  "Буча":[50.55,30.22],"Бровары":[50.51,30.79],"Борисполь":[50.35,30.95],"Обухов":[50.11,30.63],
+  "Васильков":[50.18,30.31],"Вышгород":[50.58,30.49],"Белая Церковь":[49.80,30.11],"Гостомель":[50.57,30.26],
+  "Боярка":[50.33,30.29],"Украинка":[50.14,30.75]
+};
+function pointOf(zone) { const c = COORDS[zone]; return c ? { lat:c[0], lng:c[1] } : null; }
+function hav(a,b) {
+  const R=6371, d1=(b.lat-a.lat)*Math.PI/180, d2=(b.lng-a.lng)*Math.PI/180;
+  const s=Math.sin(d1/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(d2/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+function offRoute(p, a, b) {
+  const ab = hav(a,b) || 0.001;
+  const ap = hav(a,p), bp = hav(b,p);
+  if (ap + bp < ab + 0.2) return 0;
+  const t = Math.max(0, Math.min(1, (ap*ap + ab*ab - bp*bp) / (2*ab*ab)));
+  const lat = a.lat + (b.lat-a.lat)*t, lng = a.lng + (b.lng-a.lng)*t;
+  return hav(p, {lat, lng});
+}
 function isMark(c) { return /^[xхXХ+✓✔*1]$/.test(String(c||"").trim()); }
 function splitRow(line) {
   if (line.includes("\t")) return line.split("\t").map(s => s.trim());
@@ -298,18 +321,39 @@ $("autoBtn").onclick = () => {
   const groups = {};
   list.forEach(o => { (groups[o.zone || "Без района"] ||= []).push(o); });
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
-  Object.keys(groups).sort().forEach(zone => {
+  const made = [];
+  Object.keys(groups).sort((a,b) => hav(DEPOT, pointOf(b)||DEPOT) - hav(DEPOT, pointOf(a)||DEPOT)).forEach(zone => {
+    const dest = pointOf(zone) || DEPOT;
     groups[zone].sort((a,b) => a.address.localeCompare(b.address, "ru"));
     let truck = null, n = 0;
     groups[zone].forEach(o => {
       if (!truck || n >= per || kmOf(n + 1) > kmLimit) {
-        truck = { id: uid(), name: zone + (n ? " " + (state.trucks.filter(t=>t.zone===zone).length+1) : ""), lane: l, date: d, zone, cap, kmLimit, driver: "" };
+        truck = { id: uid(), name: zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
         state.trucks.push(truck);
+        made.push(truck);
         n = 0;
       }
       o.truckId = truck.id;
+      o.seq = Math.round(hav(DEPOT, dest));
       n++;
     });
+  });
+  made.forEach(truck => {
+    const dest = pointOf(truck.zone) || DEPOT;
+    const stops = list.filter(o => o.truckId === truck.id);
+    list.filter(o => !o.truckId || o.truckId !== truck.id).forEach(o => {
+      if (o.truckId && list.filter(x => x.truckId === o.truckId).length > 2) return;
+      const p = pointOf(o.zone);
+      if (!p) return;
+      const dev = offRoute(p, DEPOT, dest);
+      if (dev > 10) return;
+      if (stops.length >= per) return;
+      o.truckId = truck.id;
+      o.seq = Math.round(hav(DEPOT, p));
+      o.note = (o.note ? o.note + " · " : "") + "по пути, отклонение ~" + Math.round(dev) + " км";
+      stops.push(o);
+    });
+    stops.sort((a,b) => (a.seq||0) - (b.seq||0)).forEach((o,i) => o.seq = i+1);
   });
   save();
 };
@@ -372,7 +416,7 @@ function render() {
   }
   const trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
   $("board").innerHTML = trucks.map(t => {
-    const stops = state.orders.filter(o => o.truckId === t.id);
+    const stops = state.orders.filter(o => o.truckId === t.id).sort((a,b) => (a.seq||0) - (b.seq||0));
     const km = kmOf(stops.length);
     const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
     const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
@@ -389,11 +433,12 @@ function render() {
       </div>
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
-      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address}</div></div>
+      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button></div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" />
         <input data-sum="${o.id}" type="number" min="0" value="${o.sum||0}" title="сумма грн" /></div>`).join("")}
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
+        <button data-route="${t.id}">Построить маршрут</button>
         <button data-pdf="${t.id}">PDF отчёт</button>
         <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
       </div>
@@ -434,6 +479,9 @@ function bind() {
     save();
   });
   document.querySelectorAll("[data-pdf]").forEach(el => el.onclick = () => pdf(el.dataset.pdf));
+  document.querySelectorAll("[data-route]").forEach(el => el.onclick = () => route(el.dataset.route));
+  document.querySelectorAll("[data-up]").forEach(el => el.onclick = () => moveStop(el.dataset.up, -1));
+  document.querySelectorAll("[data-down]").forEach(el => el.onclick = () => moveStop(el.dataset.down, 1));
   document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => {
     $("date").value = el.dataset.day;
     state.date = el.dataset.day;
@@ -442,6 +490,23 @@ function bind() {
     document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "day"));
     save();
   });
+}
+function moveStop(id, dir) {
+  const o = state.orders.find(x => x.id === id);
+  if (!o) return;
+  const list = state.orders.filter(x => x.truckId === o.truckId).sort((a,b) => (a.seq||0) - (b.seq||0));
+  list.forEach((x,i) => x.seq = i+1);
+  const i = list.findIndex(x => x.id === id), j = i + dir;
+  if (j < 0 || j >= list.length) return;
+  const s = list[i].seq; list[i].seq = list[j].seq; list[j].seq = s;
+  save();
+}
+function route(id) {
+  const t = state.trucks.find(x => x.id === id);
+  const stops = state.orders.filter(o => o.truckId === id && o.address).sort((a,b) => (a.seq||0) - (b.seq||0));
+  if (!stops.length) { alert("В машине нет адресов."); return; }
+  const pts = [$("depot").value].concat(stops.map(o => o.address + ", Украина"));
+  window.open("https://www.google.com/maps/dir/" + pts.map(encodeURIComponent).join("/"), "_blank");
 }
 function pdf(id) {
   const t = state.trucks.find(x => x.id === id);
