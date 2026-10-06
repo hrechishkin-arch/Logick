@@ -229,6 +229,7 @@ function parseOrders(text, onlyDate) {
   }
   return rows;
 }
+function parseSchedule(text, dateStr, weekBlock) {
   const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g," ").trimEnd()).filter(l => l.trim());
   const wd = weekdayOf(dateStr);
   let header = -1, col = null;
