@@ -465,7 +465,6 @@ document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
         <button data-pdf="${t.id}">PDF отчёт</button>
-        ${l==="trip"?`<button data-close="${t.id}">${t.closed?"командировка закрыта":"Закрыть и внести факт"}</button>`:""}
         <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
       </div>
     </div>`;
@@ -509,7 +508,6 @@ function bind() {
     save();
   });
   document.querySelectorAll("[data-pdf]").forEach(el => el.onclick = () => pdf(el.dataset.pdf));
-  document.querySelectorAll("[data-close]").forEach(el => el.onclick = () => closeTrip(el.dataset.close));
   document.querySelectorAll("[data-route]").forEach(el => el.onclick = () => route(el.dataset.route));
   document.querySelectorAll("[data-up]").forEach(el => el.onclick = () => moveStop(el.dataset.up, -1));
   document.querySelectorAll("[data-down]").forEach(el => el.onclick = () => moveStop(el.dataset.down, 1));
