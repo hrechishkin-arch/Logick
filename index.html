@@ -3,476 +3,358 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Logick — план на завтра</title>
+  <title>Logick</title>
   <style>
-    :root { --bg:#f4f1ea; --ink:#1b1b1b; --line:#d9d2c4; --card:#fffdf8; --acc:#1f3d2b; }
+    :root { --bg:#f3efe6; --ink:#1c1c1c; --line:#d8d0c2; --card:#fffdf8; --acc:#1e3a2f; --warn:#7a3b2e; }
     * { box-sizing: border-box; }
-    body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
-    header { padding: 18px 20px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-    header h1 { margin: 0; font-size: 22px; letter-spacing: .04em; }
-    header span { color: #666; font-size: 13px; }
-    main { display: grid; grid-template-columns: 1.05fr .95fr; gap: 16px; padding: 12px 20px 40px; }
-    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-    h2 { margin: 0 0 10px; font-size: 15px; }
-    label { display: block; font-size: 12px; color: #666; margin: 8px 0 4px; }
-    input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
-    textarea { min-height: 140px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+    body { margin: 0; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+    header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 18px; }
+    h1 { margin: 0; font-size: 20px; letter-spacing: .08em; }
+    .tabs { display: flex; gap: 6px; }
+    .tabs button, button { border: 0; border-radius: 10px; padding: 8px 12px; font-weight: 650; cursor: pointer; background: #ece6da; }
+    .tabs button.on { background: var(--acc); color: #fff; }
+    button.acc { background: var(--acc); color: #fff; }
+    button.danger { background: var(--warn); color: #fff; }
+    main { display: grid; grid-template-columns: 340px 1fr 300px; gap: 12px; padding: 0 16px 28px; }
+    @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    h2 { margin: 0 0 8px; font-size: 15px; }
+    label { display: block; font-size: 12px; color: #666; margin: 8px 0 3px; }
+    input, select, textarea { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
+    textarea { min-height: 110px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    button { border: 0; background: var(--acc); color: #fff; border-radius: 10px; padding: 9px 12px; font-weight: 650; cursor: pointer; }
-    button.ghost { background: #ece7dc; color: #222; }
-    button.danger { background: #7a2e2e; }
-    .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .truck { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 10px; background: #fff; }
-    .truck h3 { margin: 0 0 6px; font-size: 14px; }
-    .stop { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px dashed var(--line); }
-    .stop b { min-width: 18px; }
+    .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
     .muted { color: #777; font-size: 12px; }
-    .tag { display: inline-block; background: #ece7dc; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
-    .hint { background: #ece7dc; border-radius: 10px; padding: 10px; font-size: 13px; margin-top: 8px; }
-    details { margin-top: 12px; }
+    .truck { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin: 8px 0; background: #fff; }
+    .truck.head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .tag { background: #ece6da; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
+    .tag.bad { background: #f3d6d2; }
+    .stop { display: grid; grid-template-columns: 22px 1fr 70px 90px; gap: 6px; padding: 6px 0; border-bottom: 1px dashed var(--line); align-items: start; }
+    .basket { background: #f7f1e4; border-radius: 10px; padding: 8px; margin-top: 8px; }
+    .week button { margin: 0 4px 4px 0; }
+    .hide { display: none; }
     @media print {
-      header .noprint, .noprint, form, details, #pack { display: none !important; }
-      main { display: block; }
-      .truck { break-inside: avoid; }
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>LOGICK</h1>
-      <span>Пакет заявок → оцінка машин → маршрут по районах</span>
+<header>
+  <div>
+    <h1>LOGICK</h1>
+    <div class="muted">Старт: склад. Одна машина — один район Киева или один пункт области.</div>
+  </div>
+  <div class="tabs">
+    <button class="on" data-tab="day">День</button>
+    <button data-tab="week">Неделя</button>
+    <button data-tab="trip">Командировка</button>
+  </div>
+</header>
+<main>
+  <section class="card">
+    <h2>Загрузка дня</h2>
+    <div class="row">
+      <div><label>Дата развоза</label><input id="date" type="date" /></div>
+      <div><label>Лимит кг</label><input id="defaultCap" type="number" value="1500" /></div>
     </div>
-    <div class="btns noprint">
-      <button class="ghost" id="printBtn">Печать водителям</button>
-      <button class="ghost" id="clearDay">Очистить день</button>
+    <label>Склад / старт</label>
+    <input id="depot" value="Столичное шоссе, 100, Киев" />
+    <div class="row">
+      <div><label>Точек на машину</label><input id="perTruck" type="number" value="12" min="4" /></div>
+      <div><label>Лимит км</label><input id="kmLimit" type="number" value="120" /></div>
     </div>
-  </header>
-  <main>
-    <section class="card noprint">
-      <h2>Пакет із 1С</h2>
-      <div class="row3">
-        <div><label>Дата розвозу</label><input id="date" type="date" required /></div>
-        <div><label>Тоннаж машини за замовч., кг</label><input id="defaultCap" type="number" value="1500" /></div>
-        <div><label>Оцінка</label><div class="hint" id="estimate">Спочатку вставте заявки</div></div>
-      </div>
-      <label>Склад / старт усіх машин</label>
-      <input id="depot" value="Столичне шосе, 100, Київ" />
-      <div class="row">
-        <div>
-          <label>Тиждень у таблиці</label>
-          <select id="weekBlock">
-            <option value="0">З (цей тиждень, перші 7 днів)</option>
-            <option value="1">П (наступний тиждень)</option>
-          </select>
-        </div>
-        <div>
-          <label>Точок на машину, якщо немає кг</label>
-          <input id="perTruck" type="number" value="12" min="4" />
-        </div>
-      </div>
-      <label>Скопіюйте з Excel графік (код, адреса, хрестики по днях) і вставте сюди</label>
-      <textarea id="pack" placeholder="Виділіть у файлі «Новий Графік» стовпці магазин + дні і Ctrl+C, потім Ctrl+V сюди"></textarea>
-      <p class="muted">Беремо рядки, де стоїть x у день обраної дати. Код магазину зберігається. Район визначається з адреси (Київ, Вишневе, Бровари…).</p>
-      <div class="btns">
-        <button type="button" id="loadPack">Завантажити день із графіка</button>
-        <button type="button" class="ghost" id="autoBtn" onclick="window.logickSpread()">Розкидати по машинах</button>
-      </div>
-      <details>
-        <summary class="muted">Додати одну заявку вручну</summary>
-        <form id="orderForm">
-          <div class="row">
-            <div><label>Район</label><input id="district" list="districts" /></div>
-            <div><label>Клієнт</label><input id="client" list="clients" /></div>
-          </div>
-          <datalist id="clients"></datalist>
-          <datalist id="districts">
-            <option>Голосіївський</option><option>Дарницький</option><option>Деснянський</option>
-            <option>Дніпровський</option><option>Оболонський</option><option>Печерський</option>
-            <option>Подільський</option><option>Святошинський</option><option>Солом'янський</option>
-            <option>Шевченківський</option><option>Бровари</option><option>Вишневе</option>
-            <option>Ірпінь</option><option>Буча</option><option>Бориспіль</option>
-            <option>Обухів</option><option>Васильків</option><option>Вишгород</option>
-          </datalist>
-          <label>Адреса</label><input id="address" />
-          <div class="row">
-            <div><label>Вага, кг</label><input id="kg" type="number" min="0" value="0" /></div>
-            <div><label>Примітка</label><input id="note" /></div>
-          </div>
-          <div class="btns"><button type="submit">Додати</button></div>
-        </form>
-      </details>
-      <h2 style="margin-top:16px">Черга заявок</h2>
-      <div id="queue"></div>
-    </section>
-    <section class="card">
-      <h2>Машини</h2>
-      <p class="muted noprint">Плюс додає одну машину. Порожні слоти самі не з’являються. Після видалення авто заявки вертаються в чергу.</p>
-      <div class="btns noprint">
-        <button type="button" id="addTruckBtn">+ машина</button>
-      </div>
-      <div id="trucks"></div>
-    </section>
-  </main>
+    <label>Неделя в таблице</label>
+    <select id="weekBlock">
+      <option value="0">З — этот</option>
+      <option value="1">П — следующий</option>
+    </select>
+    <label>Вставьте график из Excel</label>
+    <textarea id="pack" placeholder="Код, адрес и столбцы дней с крестиками"></textarea>
+    <div class="btns">
+      <button class="acc" id="loadPack">Загрузить этот день</button>
+      <button id="autoBtn">Разложить по районам</button>
+      <button class="danger" id="clearDay">Очистить день</button>
+    </div>
+    <p class="muted" id="estimate"></p>
+    <h2>Без адреса</h2>
+    <div class="basket" id="basket"></div>
+    <h2 style="margin-top:12px">Очередь дня</h2>
+    <div id="queue"></div>
+  </section>
+  <section class="card">
+    <div class="head" style="display:flex;justify-content:space-between;align-items:center">
+      <h2 id="boardTitle">Машины дня</h2>
+      <button class="acc" id="addTruckBtn">+ машина</button>
+    </div>
+    <p class="muted">День и неделя не смешиваются. Командировка не чистится кнопкой дня.</p>
+    <div id="board"></div>
+  </section>
+  <section class="card">
+    <h2>Неделя заранее</h2>
+    <div class="week" id="weekStrip"></div>
+    <p class="muted">Постоянные клиенты по датам. «Очистить день» их не трогает.</p>
+    <h2 style="margin-top:14px">Командировка</h2>
+    <p class="muted">Другой регион, только вручную. У каждой машины своя очистка.</p>
+    <button id="gotoTrip">Открыть командировку</button>
+  </section>
+</main>
+<div id="printArea" class="hide"></div>
 <script>
-const KEY = "logick-v1";
-const state = { orders: [], trucks: [], date: "", defaultCap: 1500, depot: "Столичне шосе, 100, Київ" };
+const KEY = "logick-v2";
+const KYIV = ["Голосеевский","Дарницкий","Деснянский","Днепровский","Оболонский","Печерский","Подольский","Святошинский","Соломенский","Шевченковский"];
+const OBLAST = ["Вишнёвое","Ирпень","Буча","Бровары","Борисполь","Обухов","Васильков","Вышгород","Белая Церковь","Гостомель","Боярка"];
 const AREA = [
-  ["оболон", "Оболонський"], ["мінськ", "Оболонський"], ["героїв дніп", "Оболонський"],
-  ["троєщин", "Деснянський"], ["лісов", "Деснянський"], ["братислав", "Дніпровський"],
-  ["дарниц", "Дарницький"], ["позняк", "Дарницький"], ["осжорн", "Дарницький"], ["харківськ", "Дарницький"],
-  ["лівобереж", "Дніпровський"], ["русанів", "Дніпровський"], ["березняк", "Дніпровський"],
-  ["печер", "Печерський"], ["хрещатик", "Шевченківський"], ["лукъян", "Шевченківський"], ["лукъян", "Шевченківський"],
-  ["поділ", "Подільський"], ["куренів", "Подільський"], ["виноградар", "Подільський"],
-  ["святошин", "Святошинський"], ["борщаг", "Святошинський"], ["нивк", "Шевченківський"],
-  ["солом", "Солом'янський"], ["відрадн", "Солом'янський"], ["чубаїв", "Солом'янський"],
-  ["голосі", "Голосіївський"], ["теремк", "Голосіївський"], ["демиїв", "Голосіївський"],
-  ["вишнев", "Вишневе"], ["ірпін", "Ірпінь"], ["ірпень", "Ірпінь"], ["буча", "Буча"], ["бровар", "Бровари"],
-  ["бориспіль", "Бориспіль"], ["обухів", "Обухів"], ["васильк", "Васильків"], ["вишгород", "Вишгород"],
-  ["гостомел", "Гостомель"], ["біла церк", "Біла Церква"], ["білогород", "Білогородка"],
-  ["софіївськ", "Софіївська Борщагівка"], ["петропавлівськ", "Петропавлівська Борщагівка"],
-  ["крюковщин", "Крюківщина"], ["чайк", "Чайки"], ["борщагівк", "Борщагівка"],
-  ["рівне", "Міжмісто"], ["терноп", "Міжмісто"], ["львів", "Міжмісто"], ["івано-фран", "Міжмісто"],
-  ["київ", "Київ"]
+  ["оболон","Оболонский"],["минск","Оболонский"],["троещин","Деснянский"],["лісов","Деснянский"],["лесов","Деснянский"],
+  ["дарниц","Дарницкий"],["позняк","Дарницкий"],["осжорн","Дарницкий"],["харьков","Дарницкий"],["харків","Дарницкий"],
+  ["левобереж","Днепровский"],["лівобереж","Днепровский"],["русанов","Днепровский"],["березняк","Днепровский"],
+  ["печер","Печерский"],["подол","Подольский"],["поділ","Подольский"],["куренев","Подольский"],["виноградар","Подольский"],
+  ["святошин","Святошинский"],["борщаг","Святошинский"],["соломен","Соломенский"],["солом","Соломенский"],["отрадн","Соломенский"],["відрад","Соломенский"],
+  ["голосеев","Голосеевский"],["голосі","Голосеевский"],["теремк","Голосеевский"],["демеев","Голосеевский"],
+  ["шевченк","Шевченковский"],["крещатик","Шевченковский"],["хрещатик","Шевченковский"],
+  ["вишнев","Вишнёвое"],["вишнёв","Вишнёвое"],["ирпен","Ирпень"],["ірпін","Ирпень"],["буча","Буча"],
+  ["бровар","Бровары"],["бориспол","Борисполь"],["бориспіль","Борисполь"],["обухов","Обухов"],["обухів","Обухов"],
+  ["васильков","Васильков"],["васильк","Васильков"],["вышгород","Вышгород"],["вишгород","Вышгород"],
+  ["белая церк","Белая Церковь"],["біла церк","Белая Церковь"],["гостомел","Гостомель"],["боярк","Боярка"]
 ];
-function guessArea(text) {
-  const s = (text || "").toLowerCase();
-  const city = s.split(",")[0].trim();
-  for (const [k, v] of AREA) {
-    if (v === "Міжмісто" && city.startsWith(k)) return v;
-    if (v !== "Міжмісто" && s.includes(k)) return v;
-  }
-  return city ? city.charAt(0).toUpperCase() + city.slice(1) : "Інше";
-}
-function load() {
-  try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {}
-  if (!state.orders) state.orders = [];
-  if (!state.trucks) state.trucks = [];
-  if (!state.defaultCap) state.defaultCap = 1500;
-  if (!state.depot) state.depot = "Столичне шосе, 100, Київ";
-}
+const WD = ["вс","пн","вт","ср","чт","пт","сб"];
+const WEEK_POS = {пн:0,вт:1,ср:2,чт:3,пт:4,сб:5,вс:6,нд:6};
+let state = { orders: [], trucks: [], date: "", depot: "Столичное шоссе, 100, Киев", defaultCap: 1500, kmLimit: 120, perTruck: 12, tab: "day" };
+const $ = (id) => document.getElementById(id);
+function load() { try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {} state.orders ||= []; state.trucks ||= []; }
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
 function uid() { return Math.random().toString(36).slice(2, 9); }
-const $ = (id) => document.getElementById(id);
-
-const WD = ["нд","пн","вт","ср","чт","пт","сб"];
-function weekdayOf(dateStr) {
-  return WD[new Date(dateStr + "T12:00:00").getDay()];
+function guessZone(text) {
+  const s = (text || "").toLowerCase();
+  for (const [k,v] of AREA) if (s.includes(k)) return v;
+  if (s.includes("киев") || s.includes("київ")) return "Киев · район не определён";
+  const city = (text || "").split(",")[0].trim();
+  return city || "Без района";
 }
-function isMark(cell) {
-  return /^[xхXХ+✓✔*1]$/.test(String(cell || "").trim());
-}
+function isMark(c) { return /^[xхXХ+✓✔*1]$/.test(String(c||"").trim()); }
 function splitRow(line) {
   if (line.includes("\t")) return line.split("\t").map(s => s.trim());
   if (line.includes(";")) return line.split(";").map(s => s.trim());
   return line.split(/\s{2,}/).map(s => s.trim());
 }
-const WEEK_POS = {пн:0,вт:1,ср:2,чт:3,пт:4,сб:5,нд:6};
-function headerDayIndex(headers, weekBlock, wd) {
-  const heads = headers.map(h => h.toLowerCase().replace(/\s+/g, " "));
+function weekdayOf(d) { return WD[new Date(d + "T12:00:00").getDay()]; }
+function headerCol(headers, weekBlock, wd) {
+  const heads = headers.map(h => h.toLowerCase());
   const tagged = [];
-  heads.forEach((h, i) => {
-    const day = (h.match(/пн|вт|ср|чт|пт|сб|нд|вс/) || [""])[0].replace("вс", "нд");
+  heads.forEach((h,i) => {
+    const day = (h.match(/пн|вт|ср|чт|пт|сб|нд|вс/) || [""])[0].replace("нд","вс");
     if (!day) return;
-    const week = /(?:^|[^\w])п\s*\|/.test(h) || h.includes("п |") ? 1
-      : /(?:^|[^\w])з\s*\|/.test(h) || h.includes("з |") ? 0 : null;
-    tagged.push({ i, day, week });
+    const week = h.includes("п |") || h.includes("п|") ? 1 : h.includes("з |") || h.includes("з|") ? 0 : null;
+    tagged.push({i, day, week});
   });
-  const sameDay = tagged.filter(x => x.day === wd);
-  const byWeek = sameDay.filter(x => x.week === weekBlock);
-  if (byWeek.length) return byWeek[0].i;
-  if (sameDay.length > weekBlock) return sameDay[weekBlock].i;
-  if (sameDay.length) return sameDay[0].i;
-  const firstDay = heads.findIndex(h => /пн|вт|ср|чт|пт|сб/.test(h));
-  if (firstDay >= 0 && WEEK_POS[wd] != null) return firstDay + WEEK_POS[wd] + weekBlock * 7;
+  const same = tagged.filter(x => x.day === wd);
+  const byW = same.filter(x => x.week === weekBlock);
+  if (byW[0]) return byW[0].i;
+  if (same[weekBlock]) return same[weekBlock].i;
+  const first = heads.findIndex(h => /пн|вт|ср|чт|пт|сб/.test(h));
+  if (first >= 0 && WEEK_POS[wd] != null) return first + WEEK_POS[wd] + weekBlock * 7;
   return null;
 }
 function parseStore(cells) {
+  const parts = cells.filter(Boolean);
+  if (!parts.length) return null;
   let code = "", address = "";
-  const joined = cells.filter(Boolean);
-  if (!joined.length) return null;
-  if (/^\d{3,5}$/.test(joined[0])) {
-    code = joined[0];
-    address = joined[1] || "";
-  } else {
-    const m = joined[0].match(/^(\d{3,5})\s+(.+)$/);
-    if (m) { code = m[1]; address = m[2]; }
-    else { address = joined[0]; }
+  if (/^\d{3,5}$/.test(parts[0])) { code = parts[0]; address = parts[1] || ""; }
+  else {
+    const m = parts[0].match(/^(\d{3,5})\s+(.+)$/);
+    if (m) { code = m[1]; address = m[2]; } else address = parts[0];
   }
-  address = address.replace(/^магазин\s+/i, "").trim();
-  if (!address) return null;
-  const district = guessArea(address);
+  address = address.trim();
   return {
-    client: (code ? code + " " : "") + address.split(",")[0].trim(),
-    address,
-    district,
-    kg: 0,
-    note: code ? "код " + code : "",
-    places: "",
-    code
+    client: (code ? code + " " : "") + (address.split(",")[0] || "Точка"),
+    address, zone: address ? guessZone(address) : "",
+    kg: 0, docs: 1, sum: 0, note: code ? "код " + code : ""
   };
 }
 function parseSchedule(text, dateStr, weekBlock) {
-  const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g, " ").trimEnd()).filter(l => l.trim());
-  if (!lines.length) return { rows: [], weekday: weekdayOf(dateStr), col: null };
+  const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g," ").trimEnd()).filter(l => l.trim());
   const wd = weekdayOf(dateStr);
-  let headerIdx = -1, col = null;
+  let header = -1, col = null;
   for (let i = 0; i < Math.min(lines.length, 6); i++) {
-    const cells = splitRow(lines[i]);
-    const idx = headerDayIndex(cells, weekBlock, wd);
-    if (idx != null) { headerIdx = i; col = idx; break; }
+    const idx = headerCol(splitRow(lines[i]), weekBlock, wd);
+    if (idx != null) { header = i; col = idx; break; }
   }
-  if (col == null) {
-    const sample = splitRow(lines[Math.min(2, lines.length-1)]);
-    if (sample.length >= 9 && WEEK_POS[wd] != null) {
-      col = 2 + WEEK_POS[wd] + weekBlock * 7;
-      headerIdx = 1;
-    }
-  }
-  const out = [];
-  if (col == null) return { rows: [], weekday: wd, col: null };
-  for (let i = headerIdx + 1; i < lines.length; i++) {
+  if (col == null && lines[1] && splitRow(lines[1]).length >= 9) { col = 2 + (WEEK_POS[wd]||0) + weekBlock*7; header = 1; }
+  const rows = [];
+  if (col == null) return { rows, wd, col };
+  for (let i = header + 1; i < lines.length; i++) {
     const cells = splitRow(lines[i]);
-    if (!cells.join("").trim()) continue;
-    if (/магазин|завод/i.test(cells.slice(0,3).join(" "))) continue;
+    if (/магазин|завод/i.test(cells.slice(0,2).join(" "))) continue;
     if (!isMark(cells[col])) continue;
     const rec = parseStore(cells.slice(0, Math.min(col, 3)));
-    if (rec) out.push(rec);
+    if (rec) rows.push(rec);
   }
-  return { rows: out, weekday: wd, col };
+  return { rows, wd, col };
 }
-function parseLine(line) {
-  const cells = splitRow(line);
-  const store = parseStore(cells);
-  if (store && cells.length <= 5) {
-    const kgCell = cells.find(c => /^\d{2,5}$/.test(c) && Number(c) < 4000 && Number(c) > 20 && !/^\d{4}$/.test(c) === false);
-    return store;
-  }
-  let parts = cells.filter(Boolean);
-  if (!parts.length) return null;
-  let kg = 0;
-  const nums = parts.map((p,i) => ({i, n: Number(String(p).replace(",", "."))})).filter(x => x.n > 0);
-  if (nums.length) {
-    const last = nums[nums.length-1];
-    if (last.n < 20000) { kg = Math.round(last.n); parts.splice(last.i, 1); }
-  }
-  return {
-    client: parts[0] || "Точка",
-    address: parts[1] || parts[0] || "",
-    district: parts[2] || guessArea((parts[1]||"") + " " + (parts[0]||"")),
-    kg, note: parts.slice(3).join(" "), places: ""
-  };
+function lane() { return state.tab === "trip" ? "trip" : state.tab === "week" ? "week" : "day"; }
+function activeDate() { return state.tab === "trip" ? "trip" : $("date").value; }
+function dayOrders(l = lane(), d = activeDate()) {
+  return state.orders.filter(o => o.lane === l && (l === "trip" || o.date === d));
 }
-
-function dayOrders() {
-  return state.orders.filter(o => o.date === $("date").value);
+function trucksOf(l = lane(), d = activeDate()) {
+  return state.trucks.filter(t => t.lane === l && (l === "trip" || t.date === d));
 }
-function estimate() {
-  const list = dayOrders();
-  const cap = Number($("defaultCap").value || 1500) || 1500;
-  const per = Number($("perTruck").value || 12) || 12;
-  const kg = list.reduce((s,o)=>s+o.kg,0);
-  const byKg = kg > 0 ? Math.ceil(kg / cap) : 0;
-  const byStops = list.length ? Math.ceil(list.length / per) : 0;
-  const suggest = Math.max(byKg, byStops, list.length ? 1 : 0);
-  $("estimate").textContent = list.length
-    ? `${list.length} точок${kg ? ", " + kg + " кг" : ""} → орієнтовно ${suggest} авт. (${per} точок / ${cap} кг)`
-    : "Вставте графік з Excel";
-  return { cap, kg, suggest, per };
-}
-function ensureSlots(n, cap) {
-  while (state.trucks.length < n) {
-    state.trucks.push({ id: uid(), name: "Машина " + (state.trucks.length+1), cap, unassigned: true });
-  }
-  state.trucks.forEach(t => { if (!t.cap) t.cap = cap; });
-}
-function autoSpread() {
-  try {
-    const day = $("date").value;
-    const list = dayOrders();
-    if (!list.length) { alert("Немає заявок на цю дату. Спочатку завантажте графік."); return; }
-    const { cap, per } = estimate();
-    if (!state.trucks.length) {
-      const extra = { id: uid(), name: "Машина 1", cap, unassigned: true };
-      state.trucks.push(extra);
-    }
-    list.forEach(o => o.truckId = null);
-    const groups = {};
-    list.forEach(o => { (groups[o.district] ||= []).push(o); });
-    const districts = Object.keys(groups).sort((a,b) => groups[b].length - groups[a].length);
-    const trucks = state.trucks.slice();
-    districts.forEach(d => {
-      groups[d].sort((a,b) => String(a.address).localeCompare(String(b.address), "uk"));
-      groups[d].forEach(o => {
-        let placed = false;
-        for (let k = 0; k < trucks.length; k++) {
-          const tr = trucks[k];
-          const used = list.filter(x => x.truckId === tr.id);
-          const usedKg = used.reduce((s,x)=>s+(x.kg||0),0);
-          if ((o.kg && usedKg + o.kg > tr.cap) || used.length >= per) continue;
-          o.truckId = tr.id; placed = true; break;
-        }
-        if (!placed) {
-          const extra = { id: uid(), name: "Машина " + (state.trucks.length+1), cap, unassigned: true };
-          state.trucks.push(extra);
-          trucks.push(extra);
-          o.truckId = extra.id;
-        }
-      });
-    });
-    state.trucks = state.trucks.filter(t => list.some(o => o.truckId === t.id) || !t.unassigned);
-    save();
-    alert("На " + weekdayOf(day).toUpperCase() + " роскидано " + list.length + " точок на " + new Set(list.map(o=>o.truckId)).size + " машин.");
-  } catch (err) {
-    alert("Помилка розкидання: " + err.message);
-  }
-}
-window.logickSpread = autoSpread;
-
-load();
-$("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
-$("defaultCap").value = state.defaultCap || 1500;
-$("depot").value = state.depot || "Столичне шосе, 100, Київ";
-function dateStrHuman(d) {
-  if (!d) return "";
-  const x = new Date(d + "T12:00:00");
-  return x.toLocaleDateString("uk-UA");
-}
-$("depot").onchange = () => { state.depot = $("depot").value.trim(); save(); };
+function kmOf(n) { return Math.round(18 + Math.max(0, n - 1) * 4); }
+function money(n) { return (Number(n)||0).toLocaleString("uk-UA") + " грн"; }
 
 $("loadPack").onclick = () => {
   const day = $("date").value;
-  const raw = $("pack").value;
-  if (!raw.trim()) { alert("Вставте графік з Excel"); return; }
-  const weekBlock = Number($("weekBlock").value || 0);
-  const parsed = parseSchedule(raw, day, weekBlock);
-  const rows = parsed.rows || [];
-  if (!rows.length) { alert("Не знайшов хрестики на цей день. Перевірте дату і тиждень З/П."); return; }
-  state.orders = state.orders.filter(o => o.date !== day);
-  let n = 0;
-  rows.forEach(p => {
-    state.orders.push({ id: uid(), date: day, truckId: null, ...p });
-    n++;
-  });
+  const parsed = parseSchedule($("pack").value, day, Number($("weekBlock").value||0));
+  if (!parsed.rows.length) { alert("На этот день крестиков не нашёл. Проверьте дату и неделю З/П."); return; }
+  state.orders = state.orders.filter(o => !(o.lane === "day" && o.date === day));
+  parsed.rows.forEach(p => state.orders.push({ id: uid(), lane: "day", date: day, truckId: null, ...p }));
   state.date = day;
-  state.defaultCap = Number($("defaultCap").value||1500);
   $("pack").value = "";
   save();
-  const { suggest } = estimate();
-  alert("На " + parsed.weekday.toUpperCase() + " " + dateStrHuman(day) + " завантажено " + n + " точок (тільки цей день). Орієнтовно треба " + suggest + " машин — додайте плюсом і натисніть Розкидати.");
+  alert(parsed.wd.toUpperCase() + " " + day + ": " + parsed.rows.length + " точек. Без адреса — в корзине.");
 };
-$("autoBtn").onclick = autoSpread;
-$("defaultCap").onchange = () => { state.defaultCap = Number($("defaultCap").value||1500); save(); };
-$("orderForm").onsubmit = (e) => {
-  e.preventDefault();
-  if (!$("address").value && !$("client").value) return;
-  state.orders.push({
-    id: uid(), date: $("date").value, truckId: null,
-    district: $("district").value || guessArea($("address").value),
-    client: $("client").value || $("address").value,
-    address: $("address").value || $("client").value,
-    kg: Number($("kg").value||0), places: "", note: $("note").value.trim()
+$("autoBtn").onclick = () => {
+  const l = lane();
+  if (l === "trip") { alert("Командировка только вручную."); return; }
+  const d = activeDate();
+  const list = dayOrders(l, d).filter(o => o.address);
+  if (!list.length) { alert("Нет заявок с адресом на эту дату."); return; }
+  list.forEach(o => o.truckId = null);
+  const cap = Number($("defaultCap").value||1500);
+  const per = Number($("perTruck").value||12);
+  const kmLimit = Number($("kmLimit").value||120);
+  const groups = {};
+  list.forEach(o => { (groups[o.zone || "Без района"] ||= []).push(o); });
+  state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
+  Object.keys(groups).sort().forEach(zone => {
+    groups[zone].sort((a,b) => a.address.localeCompare(b.address, "ru"));
+    let truck = null, n = 0;
+    groups[zone].forEach(o => {
+      if (!truck || n >= per || kmOf(n + 1) > kmLimit) {
+        truck = { id: uid(), name: zone + (n ? " " + (state.trucks.filter(t=>t.zone===zone).length+1) : ""), lane: l, date: d, zone, cap, kmLimit, driver: "" };
+        state.trucks.push(truck);
+        n = 0;
+      }
+      o.truckId = truck.id;
+      n++;
+    });
   });
-  $("address").value = $("client").value = $("note").value = "";
   save();
 };
 $("addTruckBtn").onclick = () => {
-  const cap = Number($("defaultCap").value || 1500);
-  const n = state.trucks.length + 1;
-  state.trucks.push({ id: uid(), name: "Машина " + n, cap, unassigned: true });
+  const l = lane(), d = activeDate();
+  state.trucks.push({ id: uid(), name: l === "trip" ? "Командировка" : "Машина", lane: l, date: d, zone: "", cap: Number($("defaultCap").value||1500), kmLimit: Number($("kmLimit").value||120), driver: "" });
   save();
 };
 $("clearDay").onclick = () => {
   const d = $("date").value;
-  if (!confirm("Прибрати заявки на "+d+"?")) return;
-  state.orders = state.orders.filter(o => o.date !== d);
+  if (!confirm("Убрать только дневную развозку на " + d + "? Неделя и командировка останутся.")) return;
+  state.orders = state.orders.filter(o => !(o.lane === "day" && o.date === d));
+  state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
   save();
 };
-$("printBtn").onclick = () => window.print();
-$("date").onchange = () => { state.date = $("date").value; save(); };
-
-function depotAddr() {
-  return ($("depot") && $("depot").value.trim()) || state.depot || "Столичне шосе, 100, Київ";
-}
-function mapsLink(list) {
-  const start = depotAddr();
-  const pts = [start].concat(list.map(o => /київ|киев|вишнев|бровар|ірп|буча|борисп/i.test(o.address) ? o.address : (o.address + ", Київ")));
-  return "https://www.google.com/maps/dir/" + pts.map(a => encodeURIComponent(a)).join("/");
-}
-function render() {
-  estimate();
-  const day = $("date").value;
-  const clients = [...new Set(state.orders.map(o => o.client))].sort();
-  if ($("clients")) $("clients").innerHTML = clients.map(c => `<option value="${c.replace(/"/g,"")}"></option>`).join("");
-  const queued = state.orders.filter(o => o.date === day && !o.truckId);
-  $("queue").innerHTML = queued.length ? `<table><tr><th>Район</th><th>Точка</th><th>кг</th><th></th></tr>${
-    queued.map(o => `<tr><td>${o.district}</td><td><b>${o.client}</b><div class="muted">${o.address}</div></td><td>${o.kg||"—"}</td>
-    <td><select data-assign="${o.id}"><option value="">на машину…</option>${
-      state.trucks.map(t => `<option value="${t.id}">${t.name}</option>`).join("")
-    }</select> <button class="danger" data-del="${o.id}">×</button></td></tr>`).join("")
-  }</table>` : `<p class="muted">Немає вільних заявок на цю дату</p>`;
-
-  $("trucks").innerHTML = state.trucks.map(t => {
-    const stops = state.orders.filter(o => o.date === day && o.truckId === t.id)
-      .sort((a,b) => a.district.localeCompare(b.district,"uk") || a.address.localeCompare(b.address,"uk"));
-    const kg = stops.reduce((s,o)=>s+o.kg,0);
-    const over = kg > t.cap;
-    return `<div class="truck">
-      <h3>${t.name} <span class="tag">${kg} / ${t.cap} кг${over?" · перебір":""}</span>
-        <span class="noprint muted">ліміт кг</span>
-        <input class="noprint" data-cap="${t.id}" type="number" min="100" step="50" value="${t.cap}" style="width:90px;display:inline-block;padding:4px 6px" />
-        <input class="noprint" data-rename="${t.id}" value="${t.name}" style="width:180px;display:inline-block;padding:4px 6px" />
-        <button class="ghost noprint" data-drop="${t.id}">прибрати авто</button>
-      </h3>
-      <div class="stop"><b>0</b><div><div><b>Склад</b></div><div>${depotAddr()}</div><div class="muted">старт маршруту</div></div></div>
-      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div>
-        <div><b>${o.client}</b> · ${o.district}</div>
-        <div>${o.address}</div>
-        <div class="muted">${o.kg?o.kg+" кг":""} ${o.note||""}</div>
-        <div class="noprint"><button class="ghost" data-up="${o.id}">↑</button>
-        <button class="ghost" data-down="${o.id}">↓</button>
-        <button class="ghost" data-free="${o.id}">з машини</button></div>
-      </div></div>`).join("") || `<p class="muted">Порожня — призначення водія</p>`}
-      ${stops.length?`<p class="noprint"><a target="_blank" href="${mapsLink(stops)}">Маршрут у Google Maps</a></p>`:""}
-    </div>`;
-  }).join("") || `<p class="muted">Після пакета з’являться слоти машин</p>`;
-
-  document.querySelectorAll("[data-assign]").forEach(el => el.onchange = () => {
-    state.orders.find(x => x.id === el.dataset.assign).truckId = el.value || null; save();
-  });
-  document.querySelectorAll("[data-del]").forEach(el => el.onclick = () => {
-    state.orders = state.orders.filter(x => x.id !== el.dataset.del); save();
-  });
-  document.querySelectorAll("[data-cap]").forEach(el => el.onchange = () => {
-    state.trucks.find(x => x.id === el.dataset.cap).cap = Math.max(0, Number(el.value||0)); save();
-  });
-  document.querySelectorAll("[data-rename]").forEach(el => el.onchange = () => {
-    const t = state.trucks.find(x => x.id === el.dataset.rename);
-    t.name = el.value.trim() || t.name; t.unassigned = false; save();
-  });
-  document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
-    state.orders.forEach(o => { if (o.truckId === el.dataset.drop) o.truckId = null; });
-    state.trucks = state.trucks.filter(t => t.id !== el.dataset.drop); save();
-  });
-  document.querySelectorAll("[data-free]").forEach(el => el.onclick = () => {
-    state.orders.find(x => x.id === el.dataset.free).truckId = null; save();
-  });
-  document.querySelectorAll("[data-up]").forEach(el => el.onclick = () => move(el.dataset.up, -1));
-  document.querySelectorAll("[data-down]").forEach(el => el.onclick = () => move(el.dataset.down, 1));
-}
-function move(id, dir) {
-  const o = state.orders.find(x => x.id === id);
-  const list = state.orders.filter(x => x.date === o.date && x.truckId === o.truckId);
-  const i = list.findIndex(x => x.id === id), j = i + dir;
-  if (j < 0 || j >= list.length) return;
-  const a = state.orders.indexOf(list[i]), b = state.orders.indexOf(list[j]);
-  [state.orders[a], state.orders[b]] = [state.orders[b], state.orders[a]];
+document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
+  state.tab = b.dataset.tab;
+  document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === b));
   save();
+});
+$("gotoTrip").onclick = () => document.querySelector('[data-tab="trip"]').click();
+
+function render() {
+  const l = lane(), d = activeDate();
+  $("boardTitle").textContent = l === "trip" ? "Командировка" : l === "week" ? "Машины на " + d : "Машины дня";
+  const list = dayOrders();
+  const basket = list.filter(o => !o.address);
+  const queued = list.filter(o => o.address && !o.truckId);
+  $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
+  $("basket").innerHTML = basket.map(o => `<div>${o.client} <select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
+  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
+  const days = [...Array(7)].map((_,i) => {
+    const x = new Date(); x.setDate(x.getDate()+i+1);
+    const iso = x.toISOString().slice(0,10);
+    return `<button data-day="${iso}" class="${iso===$("date").value?"acc":""}">${iso.slice(8)}.${iso.slice(5,7)}</button>`;
+  }).join("");
+  $("weekStrip").innerHTML = days;
+  $("board").innerHTML = trucksOf().map(t => {
+    const stops = list.filter(o => o.truckId === t.id);
+    const km = kmOf(stops.length);
+    const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
+    const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
+    const over = km > (t.kmLimit||120);
+    return `<div class="truck">
+      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag ${over?"bad":""}">${stops.length} точ. · ${km}/${t.kmLimit||120} км · ${docs} накл. · ${money(sum)}</span></div>
+      <div class="row">
+        <input data-rename="${t.id}" value="${t.name||""}" placeholder="Водитель / авто" />
+        <input data-zone="${t.id}" value="${t.zone||""}" placeholder="Район или пункт" list="zones" />
+      </div>
+      <div class="row">
+        <div><label>Лимит кг</label><input data-cap="${t.id}" type="number" value="${t.cap||1500}" /></div>
+        <div><label>Лимит км</label><input data-kml="${t.id}" type="number" value="${t.kmLimit||120}" /></div>
+      </div>
+      <div class="muted">0 · склад · ${$("depot").value}</div>
+      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address}</div></div>
+        <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" />
+        <input data-sum="${o.id}" type="number" min="0" value="${o.sum||0}" title="сумма грн" /></div>`).join("")}
+      <div class="btns">
+        <button data-upfree="${t.id}">снять все точки</button>
+        <button data-pdf="${t.id}">PDF отчёт</button>
+        <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
+      </div>
+    </div>`;
+  }).join("") || "<p class='muted'>Машин нет. Плюс — добавить вручную, или разложить по районам.</p>";
+  $("board").insertAdjacentHTML("beforeend", `<datalist id="zones">${[...KYIV,...OBLAST].map(z=>`<option value="${z}">`).join("")}</datalist>`);
+  bind();
 }
+function bind() {
+  document.querySelectorAll("[data-to]").forEach(el => el.onchange = () => {
+    const o = state.orders.find(x => x.id === el.dataset.to);
+    const t = state.trucks.find(x => x.id === el.value);
+    if (!o || !t) return;
+    if (o.address && t.zone && o.zone && t.zone !== o.zone) {
+      if (!confirm("Адрес в зоне «" + o.zone + "», машина привязана к «" + t.zone + "». Всё равно добавить?")) { el.value = ""; return; }
+    }
+    if (!t.zone && o.zone) t.zone = o.zone;
+    o.truckId = t.id; save();
+  });
+  document.querySelectorAll("[data-del]").forEach(el => el.onclick = () => { state.orders = state.orders.filter(x => x.id !== el.dataset.del); save(); });
+  document.querySelectorAll("[data-rename]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.rename).name = el.value; save(); });
+  document.querySelectorAll("[data-zone]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.zone).zone = el.value; save(); });
+  document.querySelectorAll("[data-cap]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.cap).cap = Number(el.value||0); save(); });
+  document.querySelectorAll("[data-kml]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.kml).kmLimit = Number(el.value||120); save(); });
+  document.querySelectorAll("[data-docs]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.docs).docs = Number(el.value||0); save(); });
+  document.querySelectorAll("[data-sum]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.sum).sum = Number(el.value||0); save(); });
+  document.querySelectorAll("[data-upfree]").forEach(el => el.onclick = () => { state.orders.forEach(o => { if (o.truckId === el.dataset.upfree) o.truckId = null; }); save(); });
+  document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
+    const t = state.trucks.find(x => x.id === el.dataset.drop);
+    if (t && t.lane === "trip" && !confirm("Очистить эту командировочную машину?")) return;
+    state.orders.forEach(o => { if (o.truckId === el.dataset.drop) o.truckId = null; });
+    state.trucks = state.trucks.filter(x => x.id !== el.dataset.drop);
+    save();
+  });
+  document.querySelectorAll("[data-pdf]").forEach(el => el.onclick = () => pdf(el.dataset.pdf));
+  document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => { $("date").value = el.dataset.day; state.date = el.dataset.day; if (state.tab === "day") state.tab = "week"; document.querySelector('[data-tab="week"]').classList.add("on"); document.querySelector('[data-tab="day"]').classList.remove("on"); save(); });
+}
+function pdf(id) {
+  const t = state.trucks.find(x => x.id === id);
+  const stops = state.orders.filter(o => o.truckId === id);
+  const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
+  const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
+  $("printArea").classList.remove("hide");
+  $("printArea").innerHTML = `<h2>Logick · отчёт машины</h2>
+    <p>Дата: ${t.date === "trip" ? "командировка" : t.date}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Км (оценка): ${kmOf(stops.length)} / лимит ${t.kmLimit||120}<br>Накладных: ${docs}<br>Сумма: ${money(sum)}</p>
+    <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${o.note||""}</li>`).join("")}</ol>`;
+  window.print();
+}
+load();
+$("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
+$("depot").value = state.depot;
+$("defaultCap").value = state.defaultCap;
+$("kmLimit").value = state.kmLimit || 120;
+$("perTruck").value = state.perTruck || 12;
+["depot","defaultCap","kmLimit","perTruck"].forEach(id => $(id).onchange = () => { state[id] = id==="depot" ? $(id).value : Number($(id).value); save(); });
+$("date").onchange = () => { state.date = $("date").value; save(); };
+document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === state.tab));
 render();
 </script>
 </body>
