@@ -34,8 +34,8 @@
     .week button { margin: 0 4px 4px 0; }
     .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
     .daycell { border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-height: 78px; text-align: left; background: #fff; }
-    .daycell.mon { background: #f6e7a8; }
-    .daycell.weekend { background: #d7ead4; }
+    .daycell.mon, .daycell.mon button { background: #f6e7a8; }
+    .daycell.weekend, .daycell.weekend button { background: #cfe8c8; }
     .daycell b { display: block; }
     .daycell .m { font-size: 11px; color: #555; }
     .hide { display: none; }
@@ -396,7 +396,8 @@ function monthCells() {
     const weekTrucks = state.trucks.filter(t => t.lane === "week" && t.date === iso);
     const trips = state.trucks.filter(t => t.lane === "trip" && t.date === iso);
     const weekNo = Math.floor(i / 7) + 1;
-    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo, weekStart: i % 7 === 0 });
+    const tone = i % 7 === 0 ? "mon" : (i % 7 >= 5 ? "weekend" : "");
+    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo, tone });
   }
   return cells;
 }
@@ -412,7 +413,7 @@ function render() {
   const cells = monthCells();
   $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
   if (state.tab === "month") {
-    const head = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(d => `<div class="muted">${d}</div>`).join("");
+    const head = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map((d,i) => `<div class="muted" style="${i===0?"color:#8a6a00":i>=5?"color:#2f6b32":""}">${d}</div>`).join("");
     const weeks = [1,2,3,4,5].map(n => {
       const days = cells.filter(c => c.weekNo === n).map(c => `<div class="daycell ${c.tone}"><b>${c.label}</b>
         <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
