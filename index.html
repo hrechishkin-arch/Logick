@@ -53,8 +53,8 @@
   <div class="tabs">
     <button class="on" data-tab="day">День</button>
     <button data-tab="week">Неделя</button>
-    <button data-tab="trip">Командировка</button>
     <button data-tab="month">Месяц</button>
+    <button data-tab="trip">Командировка</button>
   </div>
 </header>
 <main>
@@ -328,6 +328,7 @@ $("clearDay").onclick = () => {
 };
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
   state.tab = b.dataset.tab;
+  if (b.dataset.tab !== "day") state.showDate = false;
   document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === b));
   save();
 });
@@ -348,7 +349,7 @@ function monthCells() {
 }
 function render() {
   const l = lane(), d = activeDate();
-  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : l === "week" ? "Машины на " + d : "Машины дня";
+  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : state.showDate ? "Машины на " + d : l === "trip" ? "Командировка" : l === "week" ? "Машины на " + d : "Машины дня";
   const list = dayOrders();
   const basket = list.filter(o => !o.address);
   const queued = list.filter(o => o.address && !o.truckId);
@@ -359,19 +360,27 @@ function render() {
   $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
   if (state.tab === "month") {
     $("board").innerHTML = `<div class="cal">${cells.map(c => `<button class="daycell" data-open="${c.iso}"><b>${c.label}</b><div class="m">${c.dayN?c.dayN+" заявок":""}</div><div class="m">${c.weekN?c.weekN+" заранее":""}</div><div class="m">${c.trips.map(t=>"командировка: "+(t.name||t.zone||"авто")).join("<br>")}</div></button>`).join("")}</div>`;
-    document.querySelectorAll("[data-open]").forEach(el => el.onclick = () => { $("date").value = el.dataset.open; state.date = el.dataset.open; state.tab = "day"; document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "day")); save(); });
+    document.querySelectorAll("[data-open]").forEach(el => el.onclick = () => {
+      $("date").value = el.dataset.open;
+      state.date = el.dataset.open;
+      state.tab = "day";
+      state.showDate = true;
+      document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "day"));
+      save();
+    });
     return;
   }
-  $("board").innerHTML = trucksOf().map(t => {
-    const stops = list.filter(o => o.truckId === t.id);
+  const trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
+  $("board").innerHTML = trucks.map(t => {
+    const stops = state.orders.filter(o => o.truckId === t.id);
     const km = kmOf(stops.length);
     const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
     const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
     const over = km > (t.kmLimit||120);
     return `<div class="truck">
-      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag ${over?"bad":""}">${stops.length} точ. · ${km}/${t.kmLimit||120} км · ${docs} накл. · ${money(sum)}</span></div>
+      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag ${over?"bad":""}">${t.lane==="trip"?"командировка":t.lane==="week"?"неделя":"день"} · ${stops.length} точ. · ${km}/${t.kmLimit||120} км · ${docs} накл. · ${money(sum)}</span></div>
       <div class="row">
-        <input data-rename="${t.id}" value="${t.name||""}" placeholder="Водитель / авто" />
+        <input data-rename="${t.id}" value="${(t.name||"").replace(/"/g,""")}" placeholder="Название машины" />
         <input data-zone="${t.id}" value="${t.zone||""}" placeholder="Район или пункт" list="zones" />
       </div>
       <div class="row">
@@ -405,7 +414,11 @@ function bind() {
     o.truckId = t.id; save();
   });
   document.querySelectorAll("[data-del]").forEach(el => el.onclick = () => { state.orders = state.orders.filter(x => x.id !== el.dataset.del); save(); });
-  document.querySelectorAll("[data-rename]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.rename).name = el.value; save(); });
+  document.querySelectorAll("[data-rename]").forEach(el => el.onchange = () => {
+    const t = state.trucks.find(x => x.id === el.dataset.rename);
+    if (t) t.name = el.value.trim();
+    save();
+  });
   document.querySelectorAll("[data-zone]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.zone).zone = el.value; save(); });
   document.querySelectorAll("[data-cap]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.cap).cap = Number(el.value||0); save(); });
   document.querySelectorAll("[data-kml]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.kml).kmLimit = Number(el.value||120); save(); });
@@ -421,7 +434,14 @@ function bind() {
     save();
   });
   document.querySelectorAll("[data-pdf]").forEach(el => el.onclick = () => pdf(el.dataset.pdf));
-  document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => { $("date").value = el.dataset.day; state.date = el.dataset.day; if (state.tab === "day") state.tab = "week"; document.querySelector('[data-tab="week"]').classList.add("on"); document.querySelector('[data-tab="day"]').classList.remove("on"); save(); });
+  document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => {
+    $("date").value = el.dataset.day;
+    state.date = el.dataset.day;
+    state.showDate = true;
+    state.tab = "day";
+    document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "day"));
+    save();
+  });
 }
 function pdf(id) {
   const t = state.trucks.find(x => x.id === id);
