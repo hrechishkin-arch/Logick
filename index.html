@@ -425,14 +425,16 @@ function render() {
     save();
   });
   const list = dayOrders();
-  const away = state.orders.filter(o => !o.truckId && outsideKyiv(o));
+  const away = state.orders.filter(o => !o.truckId && (outsideKyiv(o) || o.zone === "Белая Церковь"));
   const basket = list.filter(o => !o.truckId && (!o.address || o.basket) && !outsideKyiv(o));
-  const queued = list.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o));
+  const queued = list.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь");
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
-  $("away").innerHTML = away.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || "без номера"}</b> · ${o.client}<div class="muted">${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в командировку…</option>${tripTrucks.map(t=>`<option value="${t.id}">${t.date || ""} ${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
+  const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
+  const both = dayTrucks.map(t => `<option value="${t.id}">день ${t.date} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${t.date || ""} · ${t.name}</option>`)).join("");
+  $("away").innerHTML = away.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || "без номера"}</b> · ${o.client}<div class="muted">отгрузка ${o.date || "—"} · ${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
   $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
-  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
+  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
   const cells = monthCells();
   if (state.tab === "month") {
     const names = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
