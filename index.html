@@ -332,12 +332,12 @@ $("autoBtn").onclick = () => {
   const docsOf = o => Number(o.docs) || 1;
   const open = list.slice();
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
-  const zones = [...new Set(open.map(o => o.zone || "Без района"))].sort((a,b) => hav(DEPOT, pointOf(b)||DEPOT) - hav(DEPOT, pointOf(a)||DEPOT));
+  const zones = [...new Set(open.map(o => o.zone || "Без района"))].sort((a,b) => a.localeCompare(b, "ru"));
   zones.forEach(zone => {
     let left = open.filter(o => !o.truckId && (o.zone || "Без района") === zone);
+    let n = 1;
     while (left.length) {
-      const dest = pointOf(zone) || DEPOT;
-      const truck = { id: uid(), name: zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
+      const truck = { id: uid(), name: left.length > per || n > 1 ? zone + " " + n : zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
       state.trucks.push(truck);
       const taken = [];
       left.forEach(o => {
@@ -345,23 +345,8 @@ $("autoBtn").onclick = () => {
         taken.push(o);
       });
       if (!taken.length) taken.push(left[0]);
-      open.filter(o => !o.truckId && !taken.includes(o)).forEach(o => {
-        const add = docsOf(o);
-        if (taken.reduce((s,x)=>s+docsOf(x),0) + add > per) return;
-        const p = pointOf(o.zone);
-        if (!p) return;
-        const dev = offRoute(p, DEPOT, dest);
-        const near = hav(p, dest) <= 8;
-        const notPast = hav(DEPOT, p) <= hav(DEPOT, dest) + 4;
-        if ((dev <= 8 || near) && notPast) {
-          taken.push(o);
-          o.note = (o.note ? o.note + " · " : "") + "по пути к " + zone;
-        }
-      });
-      taken.sort((a,b) => hav(DEPOT, pointOf(a.zone)||dest) - hav(DEPOT, pointOf(b.zone)||dest));
       taken.forEach((o,i) => { o.truckId = truck.id; o.seq = i + 1; });
-      const extra = [...new Set(taken.map(o => o.zone).filter(z => z && z !== zone))];
-      if (extra.length) truck.name = zone + " + " + extra.join(", ");
+      n++;
       left = open.filter(o => !o.truckId && (o.zone || "Без района") === zone);
     }
   });
