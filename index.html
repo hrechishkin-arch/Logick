@@ -380,7 +380,7 @@ function render() {
     return `<div class="truck">
       <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag ${over?"bad":""}">${t.lane==="trip"?"командировка":t.lane==="week"?"неделя":"день"} · ${stops.length} точ. · ${km}/${t.kmLimit||120} км · ${docs} накл. · ${money(sum)}</span></div>
       <div class="row">
-        <input data-rename="${t.id}" value="${(t.name||"").replace(/"/g,""")}" placeholder="Название машины" />
+        <input data-rename="${t.id}" value="${String(t.name||"").replaceAll('"','')}" placeholder="Название машины" />
         <input data-zone="${t.id}" value="${t.zone||""}" placeholder="Район или пункт" list="zones" />
       </div>
       <div class="row">
