@@ -242,14 +242,16 @@ function parseOrders(text, onlyDate) {
     const c = splitRow(lines[i]);
     if (!c.join("").trim()) continue;
     const date = parseShipDate(c[iDate]);
-    if (onlyDate && date && date !== onlyDate) continue;
     const shop = c[iShop] || "";
     const address = extractAddress(shop);
+    const zone = address ? guessZone(address + " " + shop) : "";
+    const away = outsideKyiv({ address, zone });
+    if (onlyDate && date && date !== onlyDate && !away) continue;
     const client = (c[iClient] || shop || "Точка").trim();
     rows.push({
       client,
       address,
-      zone: address ? guessZone(address + " " + shop) : "",
+      zone,
       kg: 0,
       docs: 1,
       sum: parseMoney(c[iSum]),
@@ -325,8 +327,8 @@ $("loadPack").onclick = () => {
   state.date = day;
   $("pack").value = "";
   save();
-  const noAddr = rows.filter(r => !r.address).length;
-  alert(label + ": добавлено " + added + ", уже были и пропущены " + skipped + ". Без адреса в пакете: " + noAddr + ".");
+  const awayN = rows.filter(r => outsideKyiv(r)).length;
+  alert(label + ": добавлено " + added + ", уже были и пропущены " + skipped + ". Без адреса: " + noAddr + ". Вне области в командировку: " + awayN + ".");
 };
 $("autoBtn").onclick = () => {
   const l = lane();
