@@ -94,9 +94,8 @@
     <div id="board"></div>
   </section>
   <section class="card">
-    <h2>Командировка</h2>
-    <p class="muted">Другой регион, только вручную. У каждой машины своя очистка.</p>
-    <button id="gotoTrip">Открыть командировку</button>
+    <h2>Командировки</h2>
+    <div id="tripList"></div>
   </section>
 </main>
 <div id="printArea" class="hide"></div>
@@ -371,7 +370,7 @@ document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
   document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === b));
   save();
 });
-$("gotoTrip").onclick = () => document.querySelector('[data-tab="trip"]').click();
+$("gotoTrip") && ($("gotoTrip").onclick = () => document.querySelector('[data-tab="trip"]').click());
 
 function monthCells() {
   const start = new Date(); start.setHours(12,0,0,0);
@@ -395,6 +394,20 @@ function localISO(d) {
 function render() {
   const l = lane(), d = activeDate();
   $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : "Машины на " + d;
+  const trips = state.trucks.filter(t => t.lane === "trip").sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  $("tripList").innerHTML = trips.map(t => {
+    const n = state.orders.filter(o => o.truckId === t.id).length;
+    return `<button data-trip="${t.id}" style="display:block;width:100%;text-align:left;margin:0 0 6px">${t.date || "без даты"} · ${t.name || "Командировка"} · ${n} зак.</button>`;
+  }).join("") || "<span class='muted'>Командировок нет</span>";
+  document.querySelectorAll("[data-trip]").forEach(el => el.onclick = () => {
+    const t = state.trucks.find(x => x.id === el.dataset.trip);
+    if (!t) return;
+    state.tab = "trip";
+    state.focusTruck = t.id;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t.date)) { state.date = t.date; $("date").value = t.date; }
+    document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "trip"));
+    save();
+  });
   const list = dayOrders();
   const basket = list.filter(o => !o.truckId && (!o.address || o.basket));
   const queued = list.filter(o => o.address && !o.truckId && !o.basket);
@@ -424,7 +437,8 @@ document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.
     });
     return;
   }
-  const trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
+  let trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
+  if (state.tab === "trip" && state.focusTruck) trucks = state.trucks.filter(t => t.id === state.focusTruck);
   $("board").innerHTML = trucks.map(t => {
     const stops = state.orders.filter(o => o.truckId === t.id).sort((a,b) => (a.seq||0) - (b.seq||0));
     const km = kmOf(stops.length);
