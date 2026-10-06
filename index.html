@@ -399,11 +399,12 @@ function render() {
   const l = lane(), d = activeDate();
   $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : state.showDate ? "Машины на " + d : l === "trip" ? "Командировка" : l === "week" ? "Машины на " + d : "Машины дня";
   const list = dayOrders();
-  const basket = list.filter(o => !o.address);
-  const queued = list.filter(o => o.address && !o.truckId);
+  const loose = state.orders.filter(o => o.lane === l && !o.truckId && (l === "trip" || o.date !== d));
+  const basket = list.filter(o => !o.address).concat(loose.filter(o => !o.address));
+  const queued = list.filter(o => o.address && !o.truckId).concat(loose.filter(o => o.address));
   $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
-  $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
-  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
+  $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
+  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
   const cells = monthCells();
   $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
   if (state.tab === "month") {
@@ -471,7 +472,10 @@ function bind() {
       if (!confirm("Адрес в зоне «" + o.zone + "», машина привязана к «" + t.zone + "». Всё равно добавить?")) { el.value = ""; return; }
     }
     if (!t.zone && o.zone) t.zone = o.zone;
-    o.truckId = t.id; save();
+    o.truckId = t.id;
+    if (t.date && t.date !== "trip") o.date = t.date;
+    o.lane = t.lane || o.lane;
+    save();
   });
   document.querySelectorAll("[data-del]").forEach(el => el.onclick = () => { state.orders = state.orders.filter(x => x.id !== el.dataset.del); save(); });
   document.querySelectorAll("[data-rename]").forEach(el => el.onchange = () => {
