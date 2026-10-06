@@ -283,6 +283,7 @@ function dayOrders(l = lane(), d = activeDate()) {
   return state.orders.filter(o => o.lane === l && (l === "trip" || o.date === d));
 }
 function trucksOf(l = lane(), d = activeDate()) {
+  if (l === "trip") return state.trucks.filter(t => t.lane === "trip" && t.date === $("date").value);
   return state.trucks.filter(t => t.lane === l && (l === "trip" || t.date === d));
 }
 function kmOf(n) { return Math.round(18 + Math.max(0, n - 1) * 4); }
@@ -386,8 +387,10 @@ function monthCells() {
     const iso = x.toISOString().slice(0,10);
     const dayN = state.orders.filter(o => o.lane === "day" && o.date === iso).length;
     const weekN = state.orders.filter(o => o.lane === "week" && o.date === iso).length;
+    const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === iso);
+    const weekTrucks = state.trucks.filter(t => t.lane === "week" && t.date === iso);
     const trips = state.trucks.filter(t => t.lane === "trip" && t.date === iso);
-    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, trips });
+    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips });
   }
   return cells;
 }
@@ -403,13 +406,17 @@ function render() {
   const cells = monthCells();
   $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
   if (state.tab === "month") {
-    $("board").innerHTML = `<div class="cal">${cells.map(c => `<button class="daycell" data-open="${c.iso}"><b>${c.label}</b><div class="m">${c.dayN?c.dayN+" заявок":""}</div><div class="m">${c.weekN?c.weekN+" заранее":""}</div><div class="m">${c.trips.map(t=>"командировка: "+(t.name||t.zone||"авто")).join("<br>")}</div></button>`).join("")}</div>`;
+    $("board").innerHTML = `<div class="cal">${cells.map(c => `<div class="daycell"><b>${c.label}</b>
+      <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
+      <button class="m" data-open="${c.iso}" data-lane="week">заранее: ${c.weekTrucks.length} маш.</button>
+      <button class="m" data-open="${c.iso}" data-lane="trip">командировка: ${c.trips.length} маш.</button>
+    </div>`).join("")}</div>`;
     document.querySelectorAll("[data-open]").forEach(el => el.onclick = () => {
       $("date").value = el.dataset.open;
       state.date = el.dataset.open;
-      state.tab = "day";
-      state.showDate = true;
-      document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "day"));
+      state.tab = el.dataset.lane || "day";
+      state.showDate = state.tab !== "trip";
+      document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === state.tab));
       save();
     });
     return;
