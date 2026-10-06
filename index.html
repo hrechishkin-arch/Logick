@@ -356,7 +356,7 @@ $("addTruckBtn").onclick = () => {
 $("clearDay").onclick = () => {
   const d = $("date").value;
   if (!confirm("Убрать только дневную развозку на " + d + "? Командировка останется.")) return;
-  state.orders = state.orders.filter(o => !(o.lane === "day" && o.date === d));
+  state.orders = state.orders.filter(o => !(o.lane === "day" && (o.date === d || !o.address)));
   state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
   save();
 };
