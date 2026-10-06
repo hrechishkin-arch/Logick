@@ -407,9 +407,8 @@ function render() {
   const l = lane(), d = activeDate();
   $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : "Машины на " + d;
   const list = dayOrders();
-  const loose = state.orders.filter(o => o.lane === l && !o.truckId && (l === "trip" || o.date !== d));
-  const basket = list.filter(o => !o.address).concat(loose.filter(o => !o.address));
-  const queued = list.filter(o => o.address && !o.truckId).concat(loose.filter(o => o.address));
+  const basket = list.filter(o => !o.truckId && (!o.address || o.basket));
+  const queued = list.filter(o => o.address && !o.truckId && !o.basket);
   $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
   $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
@@ -455,7 +454,7 @@ document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.
       </div>
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
-      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button></div></div>
+      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${o.id}">в корзину</button></div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" />
         <input data-sum="${o.id}" type="number" min="0" value="${o.sum||0}" title="сумма грн" /></div>`).join("")}
       <div class="btns">
@@ -480,6 +479,7 @@ function bind() {
     }
     if (!t.zone && o.zone) t.zone = o.zone;
     o.truckId = t.id;
+    o.basket = false;
     if (t.date && t.date !== "trip") o.date = t.date;
     o.lane = t.lane || o.lane;
     save();
@@ -496,11 +496,11 @@ function bind() {
   document.querySelectorAll("[data-tdate]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.tdate).date = el.value; save(); });
   document.querySelectorAll("[data-docs]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.docs).docs = Number(el.value||0); save(); });
   document.querySelectorAll("[data-sum]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.sum).sum = Number(el.value||0); save(); });
-  document.querySelectorAll("[data-upfree]").forEach(el => el.onclick = () => { state.orders.forEach(o => { if (o.truckId === el.dataset.upfree) o.truckId = null; }); save(); });
+  document.querySelectorAll("[data-upfree]").forEach(el => el.onclick = () => { state.orders.forEach(o => { if (o.truckId === el.dataset.upfree) { o.truckId = null; o.basket = true; } }); save(); });
   document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
     const t = state.trucks.find(x => x.id === el.dataset.drop);
     if (t && t.lane === "trip" && !confirm("Очистить эту командировочную машину?")) return;
-    state.orders.forEach(o => { if (o.truckId === el.dataset.drop) o.truckId = null; });
+    state.orders.forEach(o => { if (o.truckId === el.dataset.drop) { o.truckId = null; o.basket = true; } });
     state.trucks = state.trucks.filter(x => x.id !== el.dataset.drop);
     save();
   });
@@ -509,6 +509,13 @@ function bind() {
   document.querySelectorAll("[data-route]").forEach(el => el.onclick = () => route(el.dataset.route));
   document.querySelectorAll("[data-up]").forEach(el => el.onclick = () => moveStop(el.dataset.up, -1));
   document.querySelectorAll("[data-down]").forEach(el => el.onclick = () => moveStop(el.dataset.down, 1));
+  document.querySelectorAll("[data-basket]").forEach(el => el.onclick = () => {
+    const o = state.orders.find(x => x.id === el.dataset.basket);
+    if (!o) return;
+    o.truckId = null;
+    o.basket = true;
+    save();
+  });
   document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => {
     $("date").value = el.dataset.day;
     state.date = el.dataset.day;
@@ -588,6 +595,15 @@ setTimeout(() => {
   const y = new Date(); y.setDate(y.getDate()-1);
   const iso = localISO(y);
   if (state.lastReportDate === iso) return;
+  const had = state.trucks.some(t => t.lane === "day" && t.date === iso);
+  if (!had) return;
+  if (confirm("День " + iso + " закончился. Сформировать общий отчёт по всем машинам?")) dayReport(iso);
+  state.lastReportDate = iso;
+  localStorage.setItem(KEY, JSON.stringify(state));
+}, 400);
+</script>
+</body>
+</html>
   const had = state.trucks.some(t => t.lane === "day" && t.date === iso);
   if (!had) return;
   if (confirm("День " + iso + " закончился. Сформировать общий отчёт по всем машинам?")) dayReport(iso);
