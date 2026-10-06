@@ -381,16 +381,20 @@ $("gotoTrip").onclick = () => document.querySelector('[data-tab="trip"]').click(
 
 function monthCells() {
   const start = new Date(); start.setHours(12,0,0,0);
+  const monday = new Date(start);
+  const shift = (monday.getDay() + 6) % 7;
+  monday.setDate(monday.getDate() - shift);
   const cells = [];
-  for (let i = 0; i < 31; i++) {
-    const x = new Date(start); x.setDate(start.getDate() + i);
+  for (let i = 0; i < 35; i++) {
+    const x = new Date(monday); x.setDate(monday.getDate() + i);
     const iso = x.toISOString().slice(0,10);
     const dayN = state.orders.filter(o => o.lane === "day" && o.date === iso).length;
     const weekN = state.orders.filter(o => o.lane === "week" && o.date === iso).length;
     const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === iso);
     const weekTrucks = state.trucks.filter(t => t.lane === "week" && t.date === iso);
     const trips = state.trucks.filter(t => t.lane === "trip" && t.date === iso);
-    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips });
+    const weekNo = Math.floor(i / 7) + 1;
+    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo, weekStart: i % 7 === 0 });
   }
   return cells;
 }
@@ -406,11 +410,16 @@ function render() {
   const cells = monthCells();
   $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
   if (state.tab === "month") {
-    $("board").innerHTML = `<div class="cal">${cells.map(c => `<div class="daycell"><b>${c.label}</b>
-      <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
-      <button class="m" data-open="${c.iso}" data-lane="week">заранее: ${c.weekTrucks.length} маш.</button>
-      <button class="m" data-open="${c.iso}" data-lane="trip">командировка: ${c.trips.length} маш.</button>
-    </div>`).join("")}</div>`;
+    const head = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(d => `<div class="muted">${d}</div>`).join("");
+    const weeks = [1,2,3,4,5].map(n => {
+      const days = cells.filter(c => c.weekNo === n).map(c => `<div class="daycell"><b>${c.label}</b>
+        <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
+        <button class="m" data-open="${c.iso}" data-lane="week">заранее: ${c.weekTrucks.length} маш.</button>
+        <button class="m" data-open="${c.iso}" data-lane="trip">командировка: ${c.trips.length} маш.</button>
+      </div>`).join("");
+      return `<div class="muted" style="margin:10px 0 4px">Неделя ${n}</div><div class="cal">${head}${days}</div>`;
+    }).join("");
+    $("board").innerHTML = weeks;
     document.querySelectorAll("[data-open]").forEach(el => el.onclick = () => {
       $("date").value = el.dataset.open;
       state.date = el.dataset.open;
