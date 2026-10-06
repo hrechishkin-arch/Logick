@@ -295,7 +295,7 @@ $("loadPack").onclick = () => {
     rows = parsed.rows.map(r => ({ ...r, date: day }));
     label = parsed.wd.toUpperCase() + " " + day;
   }
-  if (!rows || !rows.length) { alert("На эту дату строк не нашёл. Проверьте дату отгрузки или крестики в графике."); return; }
+  if (!rows || !rows.length) { alert("На эту дату не найдено заявок"); return; }
   state.orders = state.orders.filter(o => !(o.lane === "day" && o.date === day));
   rows.forEach(p => state.orders.push({ id: uid(), lane: "day", truckId: null, date: p.date || day, ...p }));
   state.date = day;
