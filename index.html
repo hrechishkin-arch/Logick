@@ -383,23 +383,22 @@ $("gotoTrip").onclick = () => document.querySelector('[data-tab="trip"]').click(
 
 function monthCells() {
   const start = new Date(); start.setHours(12,0,0,0);
-  const monday = new Date(start);
-  const shift = (monday.getDay() + 6) % 7;
-  monday.setDate(monday.getDate() - shift);
   const cells = [];
   for (let i = 0; i < 35; i++) {
-    const x = new Date(monday); x.setDate(monday.getDate() + i);
-    const iso = x.toISOString().slice(0,10);
+    const x = new Date(start); x.setDate(start.getDate() + i);
+    const iso = localISO(x);
     const dayN = state.orders.filter(o => o.lane === "day" && o.date === iso).length;
     const weekN = state.orders.filter(o => o.lane === "week" && o.date === iso).length;
     const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === iso);
     const weekTrucks = state.trucks.filter(t => t.lane === "week" && t.date === iso);
     const trips = state.trucks.filter(t => t.lane === "trip" && t.date === iso);
-    const weekNo = Math.floor(i / 7) + 1;
-    const tone = i % 7 === 0 ? "mon" : (i % 7 >= 5 ? "weekend" : "");
-    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo, tone });
+    const wd = x.getDay();
+    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo: Math.floor(i / 7) + 1, tone: wd === 1 ? "mon" : (wd === 0 || wd === 6 ? "weekend" : ""), wd });
   }
   return cells;
+}
+function localISO(d) {
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 }
 function render() {
   const l = lane(), d = activeDate();
@@ -413,7 +412,8 @@ function render() {
   const cells = monthCells();
   $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
   if (state.tab === "month") {
-    const head = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map((d,i) => `<div class="muted" style="${i===0?"color:#8a6a00":i>=5?"color:#2f6b32":""}">${d}</div>`).join("");
+    const names = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
+    const head = cells.slice(0,7).map(c => `<div class="muted" style="${c.tone==="mon"?"color:#8a6a00":c.tone==="weekend"?"color:#2f6b32":""}">${names[c.wd]}</div>`).join("");
     const weeks = [1,2,3,4,5].map(n => {
       const days = cells.filter(c => c.weekNo === n).map(c => `<div class="daycell ${c.tone}"><b>${c.label}</b>
         <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
@@ -459,6 +459,7 @@ function render() {
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
         <button data-pdf="${t.id}">PDF отчёт</button>
+        ${l==="trip"?`<button data-close="${t.id}">${t.closed?"командировка закрыта":"Закрыть и внести факт"}</button>`:""}
         <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
       </div>
     </div>`;
@@ -498,6 +499,7 @@ function bind() {
     save();
   });
   document.querySelectorAll("[data-pdf]").forEach(el => el.onclick = () => pdf(el.dataset.pdf));
+  document.querySelectorAll("[data-close]").forEach(el => el.onclick = () => closeTrip(el.dataset.close));
   document.querySelectorAll("[data-route]").forEach(el => el.onclick = () => route(el.dataset.route));
   document.querySelectorAll("[data-up]").forEach(el => el.onclick = () => moveStop(el.dataset.up, -1));
   document.querySelectorAll("[data-down]").forEach(el => el.onclick = () => moveStop(el.dataset.down, 1));
@@ -527,14 +529,42 @@ function route(id) {
   const pts = [$("depot").value].concat(stops.map(o => o.address + ", Украина"));
   window.open("https://www.google.com/maps/dir/" + pts.map(encodeURIComponent).join("/"), "_blank");
 }
-function pdf(id) {
+function closeTrip(id) {
+  const t = state.trucks.find(x => x.id === id);
+  if (!t) return;
+  const km = prompt("Фактический километраж", t.factKm || "");
+  if (km === null) return;
+  const sum = prompt("Фактическая сумма, грн", t.factSum || "");
+  if (sum === null) return;
+  const note = prompt("Факт: что изменилось", t.factNote || "");
+  if (note === null) return;
+  t.factKm = km;
+  t.factSum = sum;
+  t.factNote = note;
+  t.closed = true;
+  save();
+  pdf(id, true);
+}
+function dayReport(date) {
+  const trucks = state.trucks.filter(t => t.lane === "day" && t.date === date);
+  if (!trucks.length) return;
+  const blocks = trucks.map(t => {
+    const stops = state.orders.filter(o => o.truckId === t.id);
+    const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
+    return `<h3>${t.name} · ${t.zone||""}</h3><p>Точек ${stops.length}, накладных ${stops.reduce((s,o)=>s+(Number(o.docs)||0),0)}, сумма ${money(sum)}</p><ol>${stops.map(o=>`<li>${o.client} — ${o.address} — ${money(o.sum)}</li>`).join("")}</ol>`;
+  }).join("");
+  $("printArea").classList.remove("hide");
+  $("printArea").innerHTML = `<h2>Общий отчёт за ${date}</h2><p>Машин: ${trucks.length}. Склад: ${$("depot").value}</p>${blocks}`;
+  window.print();
+}
+function pdf(id, closed) {
   const t = state.trucks.find(x => x.id === id);
   const stops = state.orders.filter(o => o.truckId === id);
   const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
   const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Logick · отчёт машины</h2>
-    <p>Дата: ${t.date === "trip" ? "командировка" : t.date}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Км (оценка): ${kmOf(stops.length)} / лимит ${t.kmLimit||120}<br>Накладных: ${docs}<br>Сумма: ${money(sum)}</p>
+    <p>Дата: ${t.date}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Км план: ${kmOf(stops.length)} / лимит ${t.kmLimit||120}${t.closed?`<br>Закрыта. Факт км: ${t.factKm||"—"}<br>Факт сумма: ${t.factSum||"—"} грн<br>Факт: ${t.factNote||"—"}`:""}</p>
     <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${o.note||""}</li>`).join("")}</ol>`;
   window.print();
 }
@@ -548,6 +578,16 @@ $("perTruck").value = state.perTruck || 12;
 $("date").onchange = () => { state.date = $("date").value; save(); };
 document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === state.tab));
 render();
+setTimeout(() => {
+  const y = new Date(); y.setDate(y.getDate()-1);
+  const iso = localISO(y);
+  if (state.lastReportDate === iso) return;
+  const had = state.trucks.some(t => t.lane === "day" && t.date === iso);
+  if (!had) return;
+  if (confirm("День " + iso + " закончился. Сформировать общий отчёт по всем машинам?")) dayReport(iso);
+  state.lastReportDate = iso;
+  localStorage.setItem(KEY, JSON.stringify(state));
+}, 400);
 </script>
 </body>
 </html>
