@@ -359,9 +359,13 @@ $("addTruckBtn").onclick = () => {
 };
 $("clearDay").onclick = () => {
   const d = $("date").value;
-  if (!confirm("Убрать только дневную развозку на " + d + "? Командировка останется.")) return;
-  state.orders = state.orders.filter(o => !(o.lane === "day" && (o.date === d || !o.address)));
-  state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
+  const l = lane();
+  if (!confirm(l === "trip" ? "Убрать заявки командировки, которые не стоят в машине?" : "Убрать дневную развозку на " + d + "?")) return;
+  if (l === "trip") state.orders = state.orders.filter(o => !(o.lane === "trip" && !o.truckId));
+  else {
+    state.orders = state.orders.filter(o => !(o.lane === "day" && (o.date === d || !o.truckId)));
+    state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
+  }
   save();
 };
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
@@ -413,7 +417,7 @@ function render() {
   const queued = list.filter(o => o.address && !o.truckId && !o.basket);
   $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
   $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
-  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
+  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
   const cells = monthCells();
   if (state.tab === "month") {
     const names = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
