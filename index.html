@@ -322,42 +322,36 @@ $("autoBtn").onclick = () => {
   const cap = Number($("defaultCap").value||1500);
   const per = Number($("perTruck").value||12);
   const kmLimit = Number($("kmLimit").value||120);
+  const docsOf = o => Number(o.docs) || 1;
   const groups = {};
   list.forEach(o => { (groups[o.zone || "Без района"] ||= []).push(o); });
+  const near = [["Украинка","Обухов"],["Ирпень","Буча","Гостомель"],["Вишнёвое","Боярка"],["Васильков","Боярка"]];
+  const used = new Set();
+  const clusters = [];
+  near.forEach(pair => {
+    const present = pair.filter(z => groups[z] && !used.has(z));
+    if (present.length < 2) return;
+    const docs = present.reduce((s,z) => s + groups[z].reduce((a,o)=>a+docsOf(o),0), 0);
+    if (docs > per) return;
+    present.forEach(z => used.add(z));
+    clusters.push({ name: present.join(" + "), zone: present[0], orders: present.flatMap(z => groups[z]) });
+  });
+  Object.keys(groups).forEach(z => { if (!used.has(z)) clusters.push({ name: z, zone: z, orders: groups[z] }); });
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
-  const made = [];
-  Object.keys(groups).sort((a,b) => hav(DEPOT, pointOf(b)||DEPOT) - hav(DEPOT, pointOf(a)||DEPOT)).forEach(zone => {
-    const dest = pointOf(zone) || DEPOT;
-    groups[zone].sort((a,b) => a.address.localeCompare(b.address, "ru"));
+  clusters.forEach(cl => {
     let truck = null, n = 0;
-    groups[zone].forEach(o => {
-      if (!truck || n >= per || kmOf(n + 1) > kmLimit) {
-        truck = { id: uid(), name: zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
+    cl.orders.forEach(o => {
+      const add = docsOf(o);
+      if (!truck || n + add > per) {
+        truck = { id: uid(), name: cl.name, lane: l, date: d, zone: cl.zone, cap, kmLimit, driver: "" };
         state.trucks.push(truck);
-        made.push(truck);
         n = 0;
       }
       o.truckId = truck.id;
-      o.seq = Math.round(hav(DEPOT, dest));
-      n++;
+      o.seq = n + 1;
+      if (o.zone && o.zone !== cl.zone) o.note = (o.note ? o.note + " · " : "") + "рядом с " + cl.zone;
+      n += add;
     });
-  });
-  made.forEach(truck => {
-    const dest = pointOf(truck.zone) || DEPOT;
-    const stops = list.filter(o => o.truckId === truck.id);
-    list.filter(o => !o.truckId || o.truckId !== truck.id).forEach(o => {
-      if (o.truckId && list.filter(x => x.truckId === o.truckId).length > 2) return;
-      const p = pointOf(o.zone);
-      if (!p) return;
-      const dev = offRoute(p, DEPOT, dest);
-      if (dev > 10) return;
-      if (stops.length >= per) return;
-      o.truckId = truck.id;
-      o.seq = Math.round(hav(DEPOT, p));
-      o.note = (o.note ? o.note + " · " : "") + "по пути, отклонение ~" + Math.round(dev) + " км";
-      stops.push(o);
-    });
-    stops.sort((a,b) => (a.seq||0) - (b.seq||0)).forEach((o,i) => o.seq = i+1);
   });
   save();
 };
