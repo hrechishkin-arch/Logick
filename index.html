@@ -604,12 +604,3 @@ setTimeout(() => {
 </script>
 </body>
 </html>
-  const had = state.trucks.some(t => t.lane === "day" && t.date === iso);
-  if (!had) return;
-  if (confirm("День " + iso + " закончился. Сформировать общий отчёт по всем машинам?")) dayReport(iso);
-  state.lastReportDate = iso;
-  localStorage.setItem(KEY, JSON.stringify(state));
-}, 400);
-</script>
-</body>
-</html>
