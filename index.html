@@ -315,35 +315,40 @@ $("autoBtn").onclick = () => {
   const per = Number($("perTruck").value||12);
   const kmLimit = Number($("kmLimit").value||120);
   const docsOf = o => Number(o.docs) || 1;
-  const groups = {};
-  list.forEach(o => { (groups[o.zone || "Без района"] ||= []).push(o); });
-  const near = [["Украинка","Обухов"],["Ирпень","Буча","Гостомель"],["Вишнёвое","Боярка"],["Васильков","Боярка"]];
-  const used = new Set();
-  const clusters = [];
-  near.forEach(pair => {
-    const present = pair.filter(z => groups[z] && !used.has(z));
-    if (present.length < 2) return;
-    const docs = present.reduce((s,z) => s + groups[z].reduce((a,o)=>a+docsOf(o),0), 0);
-    if (docs > per) return;
-    present.forEach(z => used.add(z));
-    clusters.push({ name: present.join(" + "), zone: present[0], orders: present.flatMap(z => groups[z]) });
-  });
-  Object.keys(groups).forEach(z => { if (!used.has(z)) clusters.push({ name: z, zone: z, orders: groups[z] }); });
+  const open = list.slice();
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
-  clusters.forEach(cl => {
-    let truck = null, n = 0;
-    cl.orders.forEach(o => {
-      const add = docsOf(o);
-      if (!truck || n + add > per) {
-        truck = { id: uid(), name: cl.name, lane: l, date: d, zone: cl.zone, cap, kmLimit, driver: "" };
-        state.trucks.push(truck);
-        n = 0;
-      }
-      o.truckId = truck.id;
-      o.seq = n + 1;
-      if (o.zone && o.zone !== cl.zone) o.note = (o.note ? o.note + " · " : "") + "рядом с " + cl.zone;
-      n += add;
-    });
+  const zones = [...new Set(open.map(o => o.zone || "Без района"))].sort((a,b) => hav(DEPOT, pointOf(b)||DEPOT) - hav(DEPOT, pointOf(a)||DEPOT));
+  zones.forEach(zone => {
+    let left = open.filter(o => !o.truckId && (o.zone || "Без района") === zone);
+    while (left.length) {
+      const dest = pointOf(zone) || DEPOT;
+      const truck = { id: uid(), name: zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
+      state.trucks.push(truck);
+      const taken = [];
+      left.forEach(o => {
+        if (taken.reduce((s,x)=>s+docsOf(x),0) + docsOf(o) > per) return;
+        taken.push(o);
+      });
+      if (!taken.length) taken.push(left[0]);
+      open.filter(o => !o.truckId && !taken.includes(o)).forEach(o => {
+        const add = docsOf(o);
+        if (taken.reduce((s,x)=>s+docsOf(x),0) + add > per) return;
+        const p = pointOf(o.zone);
+        if (!p) return;
+        const dev = offRoute(p, DEPOT, dest);
+        const near = hav(p, dest) <= 8;
+        const notPast = hav(DEPOT, p) <= hav(DEPOT, dest) + 4;
+        if ((dev <= 8 || near) && notPast) {
+          taken.push(o);
+          o.note = (o.note ? o.note + " · " : "") + "по пути к " + zone;
+        }
+      });
+      taken.sort((a,b) => hav(DEPOT, pointOf(a.zone)||dest) - hav(DEPOT, pointOf(b.zone)||dest));
+      taken.forEach((o,i) => { o.truckId = truck.id; o.seq = i + 1; });
+      const extra = [...new Set(taken.map(o => o.zone).filter(z => z && z !== zone))];
+      if (extra.length) truck.name = zone + " + " + extra.join(", ");
+      left = open.filter(o => !o.truckId && (o.zone || "Без района") === zone);
+    }
   });
   save();
 };
