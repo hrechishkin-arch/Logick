@@ -32,6 +32,10 @@
     .stop { display: grid; grid-template-columns: 22px 1fr 70px 90px; gap: 6px; padding: 6px 0; border-bottom: 1px dashed var(--line); align-items: start; }
     .basket { background: #f7f1e4; border-radius: 10px; padding: 8px; margin-top: 8px; }
     .week button { margin: 0 4px 4px 0; }
+    .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .daycell { border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-height: 78px; background: #fff; text-align: left; }
+    .daycell b { display: block; }
+    .daycell .m { font-size: 11px; color: #555; }
     .hide { display: none; }
     @media print {
       body * { visibility: hidden; }
@@ -50,6 +54,7 @@
     <button class="on" data-tab="day">День</button>
     <button data-tab="week">Неделя</button>
     <button data-tab="trip">Командировка</button>
+    <button data-tab="month">Месяц</button>
   </div>
 </header>
 <main>
@@ -309,7 +314,8 @@ $("autoBtn").onclick = () => {
   save();
 };
 $("addTruckBtn").onclick = () => {
-  const l = lane(), d = activeDate();
+  const l = state.tab === "month" ? "day" : lane();
+  const d = l === "trip" ? ($("date").value || new Date().toISOString().slice(0,10)) : activeDate();
   state.trucks.push({ id: uid(), name: l === "trip" ? "Командировка" : "Машина", lane: l, date: d, zone: "", cap: Number($("defaultCap").value||1500), kmLimit: Number($("kmLimit").value||120), driver: "" });
   save();
 };
@@ -327,21 +333,35 @@ document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
 });
 $("gotoTrip").onclick = () => document.querySelector('[data-tab="trip"]').click();
 
+function monthCells() {
+  const start = new Date(); start.setHours(12,0,0,0);
+  const cells = [];
+  for (let i = 0; i < 31; i++) {
+    const x = new Date(start); x.setDate(start.getDate() + i);
+    const iso = x.toISOString().slice(0,10);
+    const dayN = state.orders.filter(o => o.lane === "day" && o.date === iso).length;
+    const weekN = state.orders.filter(o => o.lane === "week" && o.date === iso).length;
+    const trips = state.trucks.filter(t => t.lane === "trip" && t.date === iso);
+    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, trips });
+  }
+  return cells;
+}
 function render() {
   const l = lane(), d = activeDate();
-  $("boardTitle").textContent = l === "trip" ? "Командировка" : l === "week" ? "Машины на " + d : "Машины дня";
+  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : l === "week" ? "Машины на " + d : "Машины дня";
   const list = dayOrders();
   const basket = list.filter(o => !o.address);
   const queued = list.filter(o => o.address && !o.truckId);
   $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
   $("basket").innerHTML = basket.map(o => `<div>${o.client} <select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
-  const days = [...Array(7)].map((_,i) => {
-    const x = new Date(); x.setDate(x.getDate()+i+1);
-    const iso = x.toISOString().slice(0,10);
-    return `<button data-day="${iso}" class="${iso===$("date").value?"acc":""}">${iso.slice(8)}.${iso.slice(5,7)}</button>`;
-  }).join("");
-  $("weekStrip").innerHTML = days;
+  const cells = monthCells();
+  $("weekStrip").innerHTML = cells.slice(0, 14).map(c => `<button data-day="${c.iso}" class="${c.iso===$("date").value?"acc":""}">${c.label}${c.dayN||c.weekN||c.trips.length?" ·":""}</button>`).join("");
+  if (state.tab === "month") {
+    $("board").innerHTML = `<div class="cal">${cells.map(c => `<button class="daycell" data-open="${c.iso}"><b>${c.label}</b><div class="m">${c.dayN?c.dayN+" заявок":""}</div><div class="m">${c.weekN?c.weekN+" заранее":""}</div><div class="m">${c.trips.map(t=>"командировка: "+(t.name||t.zone||"авто")).join("<br>")}</div></button>`).join("")}</div>`;
+    document.querySelectorAll("[data-open]").forEach(el => el.onclick = () => { $("date").value = el.dataset.open; state.date = el.dataset.open; state.tab = "day"; document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "day")); save(); });
+    return;
+  }
   $("board").innerHTML = trucksOf().map(t => {
     const stops = list.filter(o => o.truckId === t.id);
     const km = kmOf(stops.length);
@@ -358,6 +378,7 @@ function render() {
         <div><label>Лимит кг</label><input data-cap="${t.id}" type="number" value="${t.cap||1500}" /></div>
         <div><label>Лимит км</label><input data-kml="${t.id}" type="number" value="${t.kmLimit||120}" /></div>
       </div>
+      ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
       ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address}</div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" />
@@ -388,6 +409,7 @@ function bind() {
   document.querySelectorAll("[data-zone]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.zone).zone = el.value; save(); });
   document.querySelectorAll("[data-cap]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.cap).cap = Number(el.value||0); save(); });
   document.querySelectorAll("[data-kml]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.kml).kmLimit = Number(el.value||120); save(); });
+  document.querySelectorAll("[data-tdate]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.tdate).date = el.value; save(); });
   document.querySelectorAll("[data-docs]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.docs).docs = Number(el.value||0); save(); });
   document.querySelectorAll("[data-sum]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.sum).sum = Number(el.value||0); save(); });
   document.querySelectorAll("[data-upfree]").forEach(el => el.onclick = () => { state.orders.forEach(o => { if (o.truckId === el.dataset.upfree) o.truckId = null; }); save(); });
