@@ -303,13 +303,14 @@ $("loadPack").onclick = () => {
     label = parsed.wd.toUpperCase() + " " + day;
   }
   if (!rows || !rows.length) { alert("На эту дату не найдено заявок"); return; }
+  const destLane = state.tab === "trip" ? "trip" : "day";
   const have = new Set(state.orders.map(o => orderKey(o.orderNo || o.note)).filter(Boolean));
   let added = 0, skipped = 0;
   rows.forEach(p => {
     const key = orderKey(p.orderNo || p.note);
     if (key && have.has(key)) { skipped++; return; }
     if (key) have.add(key);
-    state.orders.push({ id: uid(), lane: "day", truckId: null, date: p.date || day, ...p, orderNo: key || p.orderNo || "" });
+    state.orders.push({ id: uid(), lane: destLane, truckId: null, date: destLane === "trip" ? day : (p.date || day), ...p, orderNo: key || p.orderNo || "" });
     added++;
   });
   state.date = day;
