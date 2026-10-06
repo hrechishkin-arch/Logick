@@ -455,7 +455,7 @@ document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.
         <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
       </div>
     </div>`;
-  }).join("") || "<p class='muted'>Машин нет. Плюс — добавить вручную, или разложить по районам.</p>";
+  }).join("") || "<p class='muted'>Машин нет. Плюс — добавить вручную, или загрузить машины.</p>";
   $("board").insertAdjacentHTML("beforeend", `<datalist id="zones">${[...KYIV,...OBLAST].map(z=>`<option value="${z}">`).join("")}</datalist>`);
   bind();
 }
