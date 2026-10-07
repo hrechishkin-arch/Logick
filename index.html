@@ -124,7 +124,7 @@ const AREA = [
   ["васильков","Васильков"],["васильк","Васильков"],["вышгород","Вышгород"],["вишгород","Вышгород"],
   ["кольцов","Святошинский"],["кільцев","Святошинский"],["кустанай","Дарницкий"],["печенеж","Днепровский"],["печеніж","Днепровский"],
   ["науки","Голосеевский"],["кириллов","Подольский"],["кирилів","Подольский"],["чорнобиль","Святошинский"],["чернобыл","Святошинский"],["білич","Святошинский"],["билич","Святошинский"],
-  ["українк","Украинка"],["украинк","Украинка"]
+  ["белая церк","Белая Церковь"],["біла церк","Белая Церковь"],["белая","Белая Церковь"],["біла","Белая Церковь"],
 ];
 const WD = ["вс","пн","вт","ср","чт","пт","сб"];
 const WEEK_POS = {пн:0,вт:1,ср:2,чт:3,пт:4,сб:5,вс:6,нд:6};
@@ -137,9 +137,10 @@ const LOCAL = new Set([...KYIV, ...OBLAST, "Украинка", "Киев · ра
 function outsideKyiv(o) {
   if (!o || !o.address) return false;
   if (LOCAL.has(o.zone)) return false;
-  const s = (o.address + " " + (o.zone || "")).toLowerCase();
+  const s = (o.address + " " + (o.zone || "") + " " + (o.shop || "")).toLowerCase();
   if (s.includes("киев") || s.includes("київ") || s.includes("київськ")) return false;
-  return true;
+  if (/біла церк|белая церк|вишнев|вишнёв|ірпін|ирпен|буча|бровар|бориспол|бориспіль|обухов|обухів|васильк|вишгород|вышгород|гостомел|боярк|українк|украинк/.test(s)) return false;
+  return /област|львів|львов|одес|харків|харьков|дніпр|днепр|вінниц|винниц|житомир|полтав|черніг|черниг|черкас|суми|сумськ|рівне|ровно|терноп|івано|луцьк|ужгород|микола|херсон|кропив|запоріж|запорож/.test(s);
 }
 function guessZone(text) {
   const s = (text || "").toLowerCase();
@@ -481,9 +482,9 @@ function render() {
   });
   const dLoad = $("date").value;
   const pool = state.orders.filter(o => !o.truckId && (o.date === dLoad || !o.date));
-  const away = state.orders.filter(o => !o.truckId && (outsideKyiv(o) || o.zone === "Белая Церковь"));
+  const away = state.orders.filter(o => !o.truckId && outsideKyiv(o));
   const basket = pool.filter(o => (!o.address || o.basket) && !outsideKyiv(o));
-  const queued = pool.filter(o => o.address && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь");
+  const queued = pool.filter(o => o.address && !o.basket && !outsideKyiv(o));
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
