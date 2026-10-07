@@ -36,8 +36,9 @@
     .tag.bad { background: #f3d6d2; }
     .stop { display: grid; grid-template-columns: 22px 1fr 70px 90px; gap: 6px; padding: 6px 0; border-bottom: 1px dashed var(--line); align-items: start; }
     .basket { background: #f7f1e4; border-radius: 10px; padding: 8px 10px; margin-top: 8px; min-height: 34px; }
-    .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: 100%; }
-    .daycell { border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-height: 64px; text-align: left; background: #fff; color: #111; }
+    .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: 100%; flex: 1; }
+    .month { display: flex; flex-direction: column; gap: 8px; min-height: calc(100vh - 150px); }
+    .daycell { border: 1px solid var(--line); border-radius: 10px; padding: 8px; min-height: 92px; height: 100%; text-align: left; background: #fff; color: #111; }
     .daycell.mon { background: #f6e7a8; }
     .daycell.weekend { background: #d7ebfa; }
     .daycell.mon button, .daycell.weekend button { background: #fff; color: #111; }
@@ -91,7 +92,7 @@
     <h2 style="margin-top:12px">Командировка, вне области</h2>
     <div class="basket" id="away"></div>
     <h2 style="margin-top:12px">Очередь дня</h2>
-    <div id="queue"></div>
+    <div class="basket" id="queue"></div>
   </section>
   <section class="card">
     <div class="head" style="display:flex;justify-content:space-between;align-items:center">
@@ -435,13 +436,13 @@ function render() {
     const cells = monthCells();
     const names = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
     const head = cells.slice(0,7).map(c => `<div class="muted" style="${c.tone==="mon"?"color:#8a6a00":c.tone==="weekend"?"color:#2f6b32":""}">${names[c.wd]}</div>`).join("");
-    $("board").innerHTML = [1,2,3,4,5].map(n => {
+    $("board").innerHTML = `<div class="month">${[1,2,3,4,5].map(n => {
       const days = cells.filter(c => c.weekNo === n).map(c => `<div class="daycell ${c.tone}"><b>${fmt(c.iso)}</b>
         <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
         <button class="m" data-open="${c.iso}" data-lane="trip">командировка: ${c.trips.length} маш.</button>
       </div>`).join("");
-      return `<div class="cal" style="margin-top:8px">${head}${days}</div>`;
-    }).join("");
+      return `<div class="cal">${head}${days}</div>`;
+    }).join("")}</div>`;
     document.querySelectorAll("[data-open]").forEach(el => el.onclick = () => {
       $("date").value = el.dataset.open;
       state.date = el.dataset.open;
@@ -477,7 +478,7 @@ function render() {
   $("basket").innerHTML = basket.length ? basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") : empty;
   if (!basket.length) $("basket").innerHTML = empty;
   if (!away.length) $("away").innerHTML = empty;
-  $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
+  $("queue").innerHTML = queued.length ? queued.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") : empty;
   if (state.tab === "month") return;
   let trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
   if (state.tab === "trip" && state.focusTruck) trucks = state.trucks.filter(t => t.id === state.focusTruck);
