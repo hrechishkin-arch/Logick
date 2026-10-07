@@ -85,7 +85,7 @@
       <button id="autoBtn">Загрузить машины</button>
       <button class="danger" id="clearDay">Очистить день</button>
     </div>
-    <p class="muted" id="estimate"></p>
+    <p class="muted" id="estimate" style="display:none"></p>
     <h2>Без адреса</h2>
     <div class="basket" id="basket"></div>
     <h2 style="margin-top:12px">Командировка, вне области</h2>
@@ -452,9 +452,10 @@ function render() {
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
-  $("away").innerHTML = away.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || "без номера"}</b> · ${o.client}<div class="muted">отгрузка ${fmt(o.date) || "—"} · ${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
-  $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
-  $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+fmt(o.date)+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
+  $("estimate").textContent = "";
+  const empty = "<span class='muted'>Пусто</span>";
+  $("away").innerHTML = away.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || "без номера"}</b> · ${o.client}<div class="muted">отгрузка ${fmt(o.date) || "—"} · ${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || empty;
+  $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+fmt(o.date)+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || empty;
   $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
   const cells = monthCells();
   if (state.tab === "month") {
