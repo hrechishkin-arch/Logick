@@ -656,7 +656,7 @@ function pdf(id, closed) {
   const line = (o) => String(o.orderNo || "").replace(/(\d{2}\.\d{2}\.\d{4}).*$/, "$1");
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Накладная</h2>
-    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}</p>
+    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Доставка: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}</p>
     <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
   const prevTitle = document.title; document.title = " "; window.print(); document.title = prevTitle;
 }
