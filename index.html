@@ -311,6 +311,7 @@ function fmt(d) {
   const m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? m[3] + "." + m[2] + "." + m[1] : (d || "");
 }
+function money(n) { return (Number(n) || 0).toLocaleString("uk-UA") + " грн"; }
 
 function orderKey(s) {
   const map = { "А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","О":"O","Р":"P","С":"C","Т":"T","Х":"X","І":"I","Ї":"I","Є":"E","Ф":"F","Г":"G" };
