@@ -557,6 +557,8 @@ function bind() {
     const t = state.trucks.find(x => x.id === el.value);
     if (!o || !t) return;
     if (!t.zone && o.zone) t.zone = o.zone;
+    const inTruck = state.orders.filter(x => x.truckId === t.id);
+    o.seq = inTruck.reduce((m, x) => Math.max(m, Number(x.seq) || 0), 0) + 1;
     o.truckId = t.id;
     o.basket = false;
     if (t.date && t.date !== "trip") o.date = t.date;
