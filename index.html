@@ -249,7 +249,7 @@ function parseOrders(text, onlyDate) {
   for (let i = headAt + 1; i < lines.length; i++) {
     const c = splitRow(lines[i]);
     if (!c.join("").trim()) continue;
-    const date = parseShipDate(c[iDate] || c.join(" "));
+    const date = parseShipDate(c[iDate] || "");
     const shop = c[iShop] || "";
     const address = extractAddress(shop);
     const zone = address ? guessZone(address + " " + shop) : guessZone(shop);
