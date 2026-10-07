@@ -430,7 +430,8 @@ function openTrip(id) {
 }
 function render() {
   const l = lane(), d = activeDate();
-  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : "Машины на " + fmt(d);
+  $("boardTitle").textContent = state.tab === "month" ? "Календарь поставок" : l === "trip" ? "Командировка" : "Машины на " + fmt(d);
+  $("addTruckBtn").style.display = state.tab === "month" ? "none" : "";
   const trips = state.trucks.filter(t => t.lane === "trip").sort((a,b) => String(a.date).localeCompare(String(b.date)));
   $("tripList").innerHTML = trips.map(t => {
     const n = state.orders.filter(o => o.truckId === t.id).length;
