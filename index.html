@@ -261,7 +261,7 @@ function parseOrders(text, onlyDate) {
     if (onlyDate && date && date !== onlyDate && !away) continue;
     const client = (c[iClient] || shop || "Точка").trim();
     rows.push({
-      client, address, zone, kg: 0, docs: 1, sum: parseMoney(c[iSum]),
+      client, counterparty: (c[iClient] || "").trim(), address, zone, kg: 0, docs: 1, sum: parseMoney(c[iSum]),
       note: [c[iOrder], c[iStatus], c[iWho]].filter(Boolean).join(" · "),
       orderNo: c[iOrder] || "", shop, date: date || onlyDate
     });
