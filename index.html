@@ -49,10 +49,10 @@
     .hide { display: none; }
     #printArea { display: none; }
     @media print {
-      @page { size: A4; margin: 12mm; }
+      @page { size: A4; margin: 0; }
       body * { display: none !important; }
       #printArea, #printArea * { display: block !important; visibility: visible; }
-      #printArea { position: static; width: 100%; }
+      #printArea { position: static; width: auto; padding: 14mm; }
       #printArea li { break-inside: avoid; margin-bottom: 8px; }
     }
   </style>
