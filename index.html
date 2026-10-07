@@ -49,9 +49,11 @@
     .hide { display: none; }
     #printArea { display: none; }
     @media print {
-      body * { visibility: hidden; }
-      #printArea, #printArea * { visibility: visible; display: block; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+      @page { size: A4; margin: 12mm; }
+      body * { display: none !important; }
+      #printArea, #printArea * { display: block !important; visibility: visible; }
+      #printArea { position: static; width: 100%; }
+      #printArea li { break-inside: avoid; margin-bottom: 8px; }
     }
   </style>
 </head>
@@ -644,7 +646,7 @@ function dayReport(date) {
     return `<h3>${t.name} · ${t.zone||""}</h3><p>Точек ${stops.length}, накладных ${stops.reduce((s,o)=>s+(Number(o.docs)||0),0)}, сумма ${money(sum)}</p><ol>${stops.map(o=>`<li>${o.client} — ${o.address} — ${money(o.sum)}</li>`).join("")}</ol>`;
   }).join("");
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<h2>Общий отчёт за ${fmt(date)}</h2><p>Машин: ${trucks.length}. Склад: ${$("depot").value}</p>${blocks}`;
+  $("printArea").innerHTML = `<h2>Накладная за ${fmt(date)}</h2><p>Машин: ${trucks.length}. Склад: ${$("depot").value}</p>${blocks}`;
   window.print();
 }
 function pdf(id, closed) {
@@ -653,8 +655,8 @@ function pdf(id, closed) {
   const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
   const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<h2>Logick · отчёт машины</h2>
-    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Км план: ${kmOf(stops.length)} / лимит ${t.kmLimit||120}${t.closed?`<br>Закрыта. Факт км: ${t.factKm||"—"}<br>Факт сумма: ${t.factSum||"—"} грн<br>Факт: ${t.factNote||"—"}`:""}</p>
+  $("printArea").innerHTML = `<h2>Накладная</h2>
+    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}</p>
     <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${o.note||""}</li>`).join("")}</ol>`;
   window.print();
 }
