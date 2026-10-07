@@ -56,7 +56,6 @@
     <div class="brand">
       <img src="logo.png" alt="Logick" />
     </div>
-    <div class="muted">Старт: склад. Одна машина — один район Киева или один пункт области.</div>
   </div>
   <div class="tabs">
     <button class="on" data-tab="day">День</button>
@@ -298,7 +297,10 @@ function trucksOf(l = lane(), d = activeDate()) {
   return state.trucks.filter(t => t.lane === l && (l === "trip" || t.date === d));
 }
 function kmOf(n) { return Math.round(18 + Math.max(0, n - 1) * 4); }
-function money(n) { return (Number(n)||0).toLocaleString("uk-UA") + " грн"; }
+function fmt(d) {
+  const m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + "." + m[2] + "." + m[1] : (d || "");
+}
 
 function orderKey(s) {
   const map = { "А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","О":"O","Р":"P","С":"C","Т":"T","Х":"X","І":"I","Ї":"I","Є":"E","Ф":"F","Г":"G" };
@@ -312,7 +314,7 @@ $("loadPack").onclick = () => {
   const raw = $("pack").value;
   const orders = parseOrders(raw, day);
   let rows = orders;
-  let label = day;
+  let label = fmt(day);
   if (orders === null) {
     const parsed = parseSchedule(raw, day, 0);
     rows = parsed.rows.map(r => ({ ...r, date: day }));
@@ -377,7 +379,7 @@ $("addTruckBtn").onclick = () => {
 $("clearDay").onclick = () => {
   const d = $("date").value;
   const l = lane();
-  if (!confirm(l === "trip" ? "Убрать заявки командировки, которые не стоят в машине?" : "Убрать дневную развозку на " + d + "?")) return;
+  if (!confirm(l === "trip" ? "Убрать заявки командировки, которые не стоят в машине?" : "Убрать дневную развозку на " + fmt(d) + "?")) return;
   if (l === "trip") state.orders = state.orders.filter(o => !(o.lane === "trip" && !o.truckId));
   else {
     state.orders = state.orders.filter(o => !(o.lane === "day" && (o.date === d || !o.truckId)));
@@ -405,7 +407,7 @@ function monthCells() {
     const weekTrucks = state.trucks.filter(t => t.lane === "week" && t.date === iso);
     const trips = state.trucks.filter(t => t.lane === "trip" && t.date === iso);
     const wd = x.getDay();
-    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo: Math.floor(i / 7) + 1, tone: wd === 1 ? "mon" : (wd === 0 || wd === 6 ? "weekend" : ""), wd });
+    cells.push({ iso, label: fmt(iso), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo: Math.floor(i / 7) + 1, tone: wd === 1 ? "mon" : (wd === 0 || wd === 6 ? "weekend" : ""), wd });
   }
   return cells;
 }
@@ -414,11 +416,11 @@ function localISO(d) {
 }
 function render() {
   const l = lane(), d = activeDate();
-  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : "Машины на " + d;
+  $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : "Машины на " + fmt(d);
   const trips = state.trucks.filter(t => t.lane === "trip").sort((a,b) => String(a.date).localeCompare(String(b.date)));
   $("tripList").innerHTML = trips.map(t => {
     const n = state.orders.filter(o => o.truckId === t.id).length;
-    return `<button data-trip="${t.id}" style="display:block;width:100%;text-align:left;margin:0 0 6px">${t.date || "без даты"} · ${t.name || "Командировка"} · ${n} зак.</button>`;
+    return `<button data-trip="${t.id}" style="display:block;width:100%;text-align:left;margin:0 0 6px">${fmt(t.date) || "без даты"} · ${t.name || "Командировка"} · ${n} зак.</button>`;
   }).join("") || "<span class='muted'>Командировок нет</span>";
   document.querySelectorAll("[data-trip]").forEach(el => el.onclick = () => {
     const t = state.trucks.find(x => x.id === el.dataset.trip);
@@ -435,10 +437,10 @@ function render() {
   const queued = list.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь");
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
-  const both = dayTrucks.map(t => `<option value="${t.id}">день ${t.date} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${t.date || ""} · ${t.name}</option>`)).join("");
-  $("away").innerHTML = away.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || "без номера"}</b> · ${o.client}<div class="muted">отгрузка ${o.date || "—"} · ${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
+  const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
+  $("away").innerHTML = away.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || "без номера"}</b> · ${o.client}<div class="muted">отгрузка ${fmt(o.date) || "—"} · ${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("estimate").textContent = list.length ? (list.filter(o=>o.address).length + " с адресом, " + basket.length + " без адреса") : "Загрузите день";
-  $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+o.date+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
+  $("basket").innerHTML = basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.date && o.date !== d ? "с "+fmt(o.date)+" · " : ""}${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Пусто</span>";
   $("queue").innerHTML = queued.map(o => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") || "<span class='muted'>Очередь пуста</span>";
   const cells = monthCells();
   if (state.tab === "month") {
@@ -602,7 +604,7 @@ function dayReport(date) {
     return `<h3>${t.name} · ${t.zone||""}</h3><p>Точек ${stops.length}, накладных ${stops.reduce((s,o)=>s+(Number(o.docs)||0),0)}, сумма ${money(sum)}</p><ol>${stops.map(o=>`<li>${o.client} — ${o.address} — ${money(o.sum)}</li>`).join("")}</ol>`;
   }).join("");
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<h2>Общий отчёт за ${date}</h2><p>Машин: ${trucks.length}. Склад: ${$("depot").value}</p>${blocks}`;
+  $("printArea").innerHTML = `<h2>Общий отчёт за ${fmt(date)}</h2><p>Машин: ${trucks.length}. Склад: ${$("depot").value}</p>${blocks}`;
   window.print();
 }
 function pdf(id, closed) {
@@ -612,7 +614,7 @@ function pdf(id, closed) {
   const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Logick · отчёт машины</h2>
-    <p>Дата: ${t.date}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Км план: ${kmOf(stops.length)} / лимит ${t.kmLimit||120}${t.closed?`<br>Закрыта. Факт км: ${t.factKm||"—"}<br>Факт сумма: ${t.factSum||"—"} грн<br>Факт: ${t.factNote||"—"}`:""}</p>
+    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Км план: ${kmOf(stops.length)} / лимит ${t.kmLimit||120}${t.closed?`<br>Закрыта. Факт км: ${t.factKm||"—"}<br>Факт сумма: ${t.factSum||"—"} грн<br>Факт: ${t.factNote||"—"}`:""}</p>
     <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${o.note||""}</li>`).join("")}</ol>`;
   window.print();
 }
@@ -632,7 +634,7 @@ setTimeout(() => {
   if (state.lastReportDate === iso) return;
   const had = state.trucks.some(t => t.lane === "day" && t.date === iso);
   if (!had) return;
-  if (confirm("День " + iso + " закончился. Сформировать общий отчёт по всем машинам?")) dayReport(iso);
+  if (confirm("День " + fmt(iso) + " закончился. Сформировать общий отчёт по всем машинам?")) dayReport(iso);
   state.lastReportDate = iso;
   localStorage.setItem(KEY, JSON.stringify(state));
 }, 400);
