@@ -81,7 +81,7 @@
     <input id="depot" value="Столичное шоссе, 100, Киев" />
     <div class="row">
       <div><label>Точек на машину</label><input id="perTruck" type="number" value="12" min="4" /></div>
-      <div><label>Лимит км</label><input id="kmLimit" type="number" value="120" /></div>
+      <div><label>Общий километраж</label><input id="kmLimit" type="number" value="" placeholder="после маршрута" /></div>
     </div>
     <label>Вставьте график из Excel</label>
     <textarea id="pack" placeholder="Скопируйте из Excel вместе с шапкой: Заказ покупателя, Организация, Контрагент, Сумма, Дата отгрузки, Магазин"></textarea>
@@ -526,14 +526,14 @@ function render() {
     const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
     const over = km > (t.kmLimit||120);
     return `<div class="truck">
-      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag ${over?"bad":""}">${t.lane==="trip"?"командировка":"день"} · ${stops.length} точ. · ${km}/${t.kmLimit||120} км · ${docs} накл. · ${money(sum)}</span></div>
+      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag">${t.lane==="trip"?"командировка":"день"} · ${stops.length} точ. · ${t.kmTotal?t.kmTotal+" км":"км не указан"} · ${docs} накл. · ${money(sum)}</span></div>
       <div class="row zone-row">
         <input data-rename="${t.id}" value="${String(t.name||"").replaceAll('"','')}" placeholder="Название машины" />
         <input data-zone="${t.id}" value="${t.zone||""}" placeholder="Район или пункт" list="zones" />
       </div>
       <div class="row">
         <div><label>Лимит кг</label><input data-cap="${t.id}" type="number" value="${t.cap||1500}" /></div>
-        <div><label>Лимит км</label><input data-kml="${t.id}" type="number" value="${t.kmLimit||120}" /></div>
+        <div><label>Общий километраж</label><input data-kml="${t.id}" type="number" value="${t.kmTotal||""}" placeholder="после маршрута" /></div>
       </div>
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
@@ -574,7 +574,7 @@ function bind() {
   });
   document.querySelectorAll("[data-zone]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.zone).zone = el.value; save(); });
   document.querySelectorAll("[data-cap]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.cap).cap = Number(el.value||0); save(); });
-  document.querySelectorAll("[data-kml]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.kml).kmLimit = Number(el.value||120); save(); });
+  document.querySelectorAll("[data-kml]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.kml).kmTotal = Number(el.value||0); save(); });
   document.querySelectorAll("[data-tdate]").forEach(el => el.onchange = () => { state.trucks.find(t=>t.id===el.dataset.tdate).date = el.value; save(); });
   document.querySelectorAll("[data-docs]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.docs).docs = Number(el.value||0); save(); });
   document.querySelectorAll("[data-sum]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.sum).sum = Number(el.value||0); save(); });
@@ -657,7 +657,7 @@ function pdf(id, closed) {
   const line = (o) => String(o.orderNo || "").replace(/(\d{2}\.\d{2}\.\d{4}).*$/, "$1");
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Накладная</h2>
-    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Доставка: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}</p>
+    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Доставка: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Общий километраж: ${t.kmTotal||"—"}</p>
     <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
   const prevTitle = document.title; document.title = " "; window.print(); document.title = prevTitle;
 }
