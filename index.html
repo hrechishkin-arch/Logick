@@ -647,7 +647,7 @@ function dayReport(date) {
   }).join("");
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Накладная за ${fmt(date)}</h2><p>Машин: ${trucks.length}. Склад: ${$("depot").value}</p>${blocks}`;
-  window.print();
+  const prev = document.title; document.title = " "; window.print(); document.title = prev;
 }
 function pdf(id, closed) {
   const t = state.trucks.find(x => x.id === id);
@@ -658,7 +658,7 @@ function pdf(id, closed) {
   $("printArea").innerHTML = `<h2>Накладная</h2>
     <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}</p>
     <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
-  window.print();
+  const prevTitle = document.title; document.title = " "; window.print(); document.title = prevTitle;
 }
 load();
 $("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
