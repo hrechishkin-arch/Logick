@@ -217,8 +217,51 @@ function parseMoney(s) {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
 }
 function parseShipDate(s) {
-  const m = String(s || "").match(/(\d{2})\.(\d{2})\.(\d{4})/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+  const t = String(s || "");
+  let m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + "-" + m[2] + "-" + m[3];
+  m = t.match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+  if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+  return "";
+}
+function parseOrders(text, onlyDate) {
+  const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g, " ").trimEnd()).filter(l => l.trim());
+  if (!lines.length) return [];
+  let headAt = 0;
+  let head = splitRow(lines[0]).map(h => h.toLowerCase());
+  const colOf = (arr, names) => arr.findIndex(h => names.some(n => h.includes(n)));
+  for (let i = 0; i < Math.min(lines.length, 8); i++) {
+    const h = splitRow(lines[i]).map(x => x.toLowerCase());
+    if (colOf(h, ["магаз"]) >= 0 && colOf(h, ["отгруз", "відван", "відгруз"]) >= 0) { head = h; headAt = i; break; }
+  }
+  const col = (names) => colOf(head, names);
+  const iOrder = col(["заказ", "замов"]);
+  const iOrg = col(["организа", "організа"]);
+  const iClient = col(["контраг"]);
+  const iSum = col(["сумм"]);
+  const iWho = col(["ответ", "відпов"]);
+  const iDate = col(["отгруз", "відван", "відгруз"]);
+  const iStatus = col(["статус"]);
+  const iShop = col(["магаз"]);
+  if (iShop < 0 || iDate < 0) return null;
+  const rows = [];
+  for (let i = headAt + 1; i < lines.length; i++) {
+    const c = splitRow(lines[i]);
+    if (!c.join("").trim()) continue;
+    const date = parseShipDate(c[iDate] || c.join(" "));
+    const shop = c[iShop] || "";
+    const address = extractAddress(shop);
+    const zone = address ? guessZone(address + " " + shop) : guessZone(shop);
+    const away = outsideKyiv({ address, zone, shop });
+    if (onlyDate && date && date !== onlyDate && !away) continue;
+    const client = (c[iClient] || shop || "Точка").trim();
+    rows.push({
+      client, address, zone, kg: 0, docs: 1, sum: parseMoney(c[iSum]),
+      note: [c[iOrder], c[iStatus], c[iWho]].filter(Boolean).join(" · "),
+      orderNo: c[iOrder] || "", shop, date: date || onlyDate
+    });
+  }
+  return rows;
 }
 function extractAddress(shop) {
   const text = String(shop || "").trim();
@@ -229,46 +272,6 @@ function extractAddress(shop) {
   if (/^\s*(рц)\s*$/i.test(inner) || (!paren && !hasStreet)) return "";
   if (paren && !/вул|бул|пр-т|просп|шосе|\d/.test(inner)) return "";
   return inner.replace(/\s+/g, " ").trim();
-}
-function parseOrders(text, onlyDate) {
-  const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g, " ").trimEnd()).filter(l => l.trim());
-  if (!lines.length) return [];
-  const head = splitRow(lines[0]).map(h => h.toLowerCase());
-  const col = (name) => head.findIndex(h => h.includes(name));
-  const iOrder = col("заказ");
-  const iOrg = col("организа");
-  const iClient = col("контраг");
-  const iSum = col("сумм");
-  const iWho = col("ответ");
-  const iDate = col("отгруз");
-  const iStatus = col("статус");
-  const iShop = col("магаз");
-  if (iShop < 0 || iDate < 0) return null;
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const c = splitRow(lines[i]);
-    if (!c.join("").trim()) continue;
-    const date = parseShipDate(c[iDate]);
-    const shop = c[iShop] || "";
-    const address = extractAddress(shop);
-    const zone = address ? guessZone(address + " " + shop) : "";
-    const away = outsideKyiv({ address, zone });
-    if (onlyDate && date && date !== onlyDate && !away) continue;
-    const client = (c[iClient] || shop || "Точка").trim();
-    rows.push({
-      client,
-      address,
-      zone,
-      kg: 0,
-      docs: 1,
-      sum: parseMoney(c[iSum]),
-      note: [c[iOrder], c[iStatus], c[iWho]].filter(Boolean).join(" · "),
-      orderNo: c[iOrder] || "",
-      shop,
-      date: date || onlyDate
-    });
-  }
-  return rows;
 }
 function parseSchedule(text, dateStr, weekBlock) {
   const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g," ").trimEnd()).filter(l => l.trim());
@@ -315,24 +318,32 @@ function orderKey(s) {
 $("loadPack").onclick = () => {
   const day = $("date").value;
   const raw = $("pack").value;
-  const orders = parseOrders(raw, day);
-  let rows = orders;
+  const orders = parseOrders(raw, "");
+  let rows = Array.isArray(orders) ? orders : [];
   let label = fmt(day);
-  if (orders === null) {
+  if (!rows.length) {
     const parsed = parseSchedule(raw, day, 0);
     rows = parsed.rows.map(r => ({ ...r, date: day }));
-    label = parsed.wd.toUpperCase() + " " + day;
   }
-  if (!rows || !rows.length) {
+  if (!rows.length) {
     rows = raw.split(/\r?\n/).map(line => {
       const cells = splitRow(line);
       const joined = cells.join(" ");
-      if (!orderKey(joined)) return null;
+      if (!orderKey(joined) && !parseShipDate(joined)) return null;
       const shop = [...cells].reverse().find(c => /вул|бул|просп|шосе|церк|київ|киев|фора|атб|магаз/i.test(c)) || cells[cells.length - 1] || "";
       const address = extractAddress(shop) || shop;
       return { client: shop || "Точка", address, zone: guessZone(address + " " + shop), kg: 0, docs: 1, sum: 0, note: joined, orderNo: joined, shop, date: parseShipDate(joined) || day };
-    }).filter(Boolean).filter(r => r.date === day || outsideKyiv(r));
+    }).filter(Boolean);
   }
+  const dated = rows.filter(r => r.date);
+  const forDay = rows.filter(r => !r.date || r.date === day || outsideKyiv(r));
+  if (!forDay.length && dated.length) {
+    const next = dated.map(r => r.date).sort()[0];
+    $("date").value = next;
+    state.date = next;
+    rows = rows.filter(r => r.date === next || outsideKyiv(r));
+    label = fmt(next);
+  } else rows = forDay.length ? forDay : rows;
   if (!rows.length) { alert("На эту дату не найдено заявок"); return; }
   const destLane = state.tab === "trip" ? "trip" : "day";
   let added = 0, skipped = 0;
