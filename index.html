@@ -331,7 +331,9 @@ function fmt(d) {
   const m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? m[3] + "." + m[2] + "." + m[1] : (d || "");
 }
-function money(n) { return (Number(n) || 0).toLocaleString("uk-UA") + " грн"; }
+function money(n) {
+  return (Number(n) || 0).toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " грн";
+}
 
 function orderKey(s) {
   const map = { "А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","О":"O","Р":"P","С":"C","Т":"T","Х":"X","І":"I","Ї":"I","Є":"E","Ф":"F","Г":"G" };
@@ -555,7 +557,7 @@ function render() {
       <div class="muted">0 · склад · ${$("depot").value}</div>
       ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address || "без адреса"}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${o.id}">снять</button></div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" readonly />
-        <input data-sum="${o.id}" type="number" min="0" value="${o.sum||0}" title="сумма грн" readonly /></div>`).join("")}
+        <input data-sum="${o.id}" type="text" value="${(Number(o.sum)||0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`).join("")}
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
