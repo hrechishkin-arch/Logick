@@ -58,6 +58,7 @@
       #printArea .sheet { box-sizing: border-box; min-height: 297mm; padding: 14mm; break-after: page; }
       #printArea h2 { font-size: 16px; margin: 0 0 6px; }
       #printArea h3 { font-size: 13px; margin: 10px 0 4px; break-after: avoid; }
+      #printArea p { margin: 0 0 2px; }
       #printArea table { width: 100%; border-collapse: collapse; }
       #printArea td, #printArea th { border-bottom: 1px solid #ddd; padding: 3px 4px; text-align: left; vertical-align: top; }
       #printArea th { font-size: 10px; }
@@ -143,7 +144,7 @@ const WD = ["вс","пн","вт","ср","чт","пт","сб"];
 const WEEK_POS = {пн:0,вт:1,ср:2,чт:3,пт:4,сб:5,вс:6,нд:6};
 let state = { orders: [], trucks: [], date: "", depot: "Столичное шоссе, 100, Киев", defaultCap: 1500, kmLimit: 120, perTruck: 12, tab: "day" };
 const $ = (id) => document.getElementById(id);
-function load() { try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {} state.orders ||= []; state.trucks ||= []; }
+function load() { try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {} state.orders ||= []; state.trucks ||= []; state.dupes ||= []; }
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
 function uid() { return Math.random().toString(36).slice(2, 9); }
 const LOCAL = new Set([...KYIV, ...OBLAST, "Украинка", "Киев · район не определён"]);
@@ -362,11 +363,20 @@ $("loadPack").onclick = () => {
   }
   if (!rows || !rows.length) { $("loadStatus").textContent = "На эту дату не найдено заявок. Вставьте таблицу вместе с шапкой."; return; }
   const destLane = "day";
-  let added = 0, skipped = 0;
+  let added = 0, skipped = 0, duped = 0;
   const useDate = $("date").value || day;
+  const seenInPaste = new Set();
+  state.dupes ||= [];
   rows.forEach(p => {
     const key = orderKey(p.orderNo || p.note);
     const lane = outsideKyiv(p) ? "trip" : destLane;
+    const dupeDate = p.date || useDate;
+    if (key && seenInPaste.has(key)) {
+      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key, sum: p.sum, note: "продублирован и снят с дня" });
+      duped++;
+      return;
+    }
+    if (key) seenInPaste.add(key);
     const existing = key ? state.orders.find(o => orderKey(o.orderNo || o.note) === key) : null;
     if (existing && !existing.truckId) {
       existing.date = p.date || useDate;
@@ -381,7 +391,11 @@ $("loadPack").onclick = () => {
       skipped++;
       return;
     }
-    if (existing) { skipped++; return; }
+    if (existing) {
+      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key || p.orderNo || "", sum: p.sum, note: "продублирован и снят с дня" });
+      duped++;
+      return;
+    }
     state.orders.push({ id: uid(), lane, truckId: null, date: p.date || useDate, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
     added++;
   });
@@ -390,7 +404,7 @@ $("loadPack").onclick = () => {
   $("pack").value = "";
   save();
   const dayN = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && o.address && (o.date === useDate || !o.date)).length;
-  $("loadStatus").textContent = fmt(useDate) + ": в очереди дня " + dayN + ". Добавлено " + added + ", обновлено " + skipped + ".";
+  $("loadStatus").textContent = fmt(useDate) + ": в очереди дня " + dayN + ". Добавлено " + added + ", обновлено " + skipped + (duped ? ", дублей снято " + duped : "") + ".";
 };
 $("autoBtn").onclick = () => {
   const l = lane();
@@ -439,6 +453,7 @@ $("clearDay").onclick = () => {
   else {
     state.orders = state.orders.filter(o => !(o.lane === "day" && (o.date === d || !o.truckId)));
     state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
+    state.dupes = (state.dupes || []).filter(x => x.date !== d);
   }
   save();
 };
@@ -656,21 +671,41 @@ function closeTrip(id) {
   save();
   pdf(id, true);
 }
+function esc(s) { return String(s ?? "").replace(/[&<>]/g, ch => ({ "&": "&", "<": "<", ">": ">" }[ch])); }
+function orderLabel(o) { return orderKey(o.orderNo) || o.orderNo || "без номера"; }
 function dayReport(date) {
   const trucks = state.trucks.filter(t => t.lane === "day" && t.date === date);
   if (!trucks.length) { alert("На эту дату нет машин."); return; }
-  const line = (o) => String(o.orderNo || "").replace(/(\d{2}\.\d{2}\.\d{4}).*$/, "$1");
-  let ordersN = 0, sumAll = 0, kmAll = 0;
-  const blocks = trucks.map(t => {
+  const seen = new Set();
+  const dupes = [];
+  const loaded = [];
+  trucks.forEach(t => {
     const stops = state.orders.filter(o => o.truckId === t.id).sort((a,b) => (a.seq||0) - (b.seq||0));
-    const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
-    ordersN += stops.length;
-    sumAll += sum;
-    kmAll += Number(t.kmTotal) || 0;
-    return `<p><b>${t.name}</b> · заказов ${stops.length} · км ${t.kmTotal||"—"} · сумма ${money(sum)}<br>${stops.map(o => (orderKey(o.orderNo) || o.orderNo || "без номера") + " " + money(o.sum)).join(" · ")}</p>`;
+    const kept = [];
+    stops.forEach(o => {
+      const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
+      if (key && seen.has(key)) { dupes.push(o); return; }
+      if (key) seen.add(key);
+      kept.push(o);
+    });
+    if (kept.length) loaded.push({ t, stops: kept });
+  });
+  (state.dupes || []).filter(d => d.date === date).forEach(d => {
+    const key = orderKey(d.orderNo) || String(d.orderNo || "").trim();
+    if (key && dupes.some(x => (orderKey(x.orderNo) || String(x.orderNo || "").trim()) === key && Number(x.sum) === Number(d.sum))) return;
+    dupes.push(d);
+  });
+  const ordersN = loaded.reduce((s, x) => s + x.stops.length, 0);
+  const sumAll = loaded.reduce((s, x) => s + x.stops.reduce((a, o) => a + (Number(o.sum) || 0), 0), 0);
+  const kmAll = loaded.reduce((s, x) => s + (Number(x.t.kmTotal) || 0), 0);
+  const blocks = loaded.map(({ t, stops }) => {
+    const sum = stops.reduce((s, o) => s + (Number(o.sum) || 0), 0);
+    const lines = stops.map(o => `<p>${esc(orderLabel(o))} — ${money(o.sum)}</p>`).join("");
+    return `<p><b>${esc(t.name)}</b><br>заказов ${stops.length} · км ${t.kmTotal || "—"} · сумма ${money(sum)}</p>${lines}`;
   }).join("");
+  const dupeBlock = dupes.length ? `<h3>Дубли</h3>${dupes.map(o => `<p>${esc(orderLabel(o))} — ${money(o.sum)} — продублирован и снят с дня</p>`).join("")}` : "";
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${trucks.length}<br>Заявок: ${ordersN}<br>Общий километраж: ${kmAll||"—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${$("depot").value}</p>${blocks}</section>`;
+  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${loaded.length}<br>Заявок: ${ordersN}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`;
   const prev = document.title; document.title = " "; window.print(); document.title = prev;
 }
 function pdf(id, closed) {
