@@ -86,7 +86,7 @@
       <button id="autoBtn">Загрузить машины</button>
       <button class="danger" id="clearDay">Очистить день</button>
     </div>
-    <p class="muted" id="loadStatus"></p>
+    <p class="muted" id="loadStatus">Вставьте таблицу с шапкой и нажмите «Добавить заявки».</p>
     <p class="muted" id="estimate" style="display:none"></p>
     <h2 style="margin-top:16px">Без адреса</h2>
     <div class="basket" id="basket"><span style="color:#777">Пусто</span></div>
@@ -304,6 +304,9 @@ function trucksOf(l = lane(), d = activeDate()) {
   return state.trucks.filter(t => t.lane === l && (l === "trip" || t.date === d));
 }
 function kmOf(n) { return Math.round(18 + Math.max(0, n - 1) * 4); }
+function sameDay(a, b) {
+  return parseShipDate(a) === parseShipDate(b) || String(a || "") === String(b || "");
+}
 function fmt(d) {
   const m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? m[3] + "." + m[2] + "." + m[1] : (d || "");
@@ -494,8 +497,8 @@ function render() {
   const dLoad = $("date").value;
   const open = state.orders.filter(o => !o.truckId);
   const away = open.filter(o => outsideKyiv(o));
-  const basket = open.filter(o => !outsideKyiv(o) && (o.date === dLoad || !o.date) && (!o.address || o.basket));
-  const queued = open.filter(o => !outsideKyiv(o) && (o.date === dLoad || !o.date) && o.address);
+  const queued = open.filter(o => !outsideKyiv(o) && (sameDay(o.date, dLoad) || !o.date) && o.address);
+  const basket = open.filter(o => !outsideKyiv(o) && (sameDay(o.date, dLoad) || !o.date) && !o.address);
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
