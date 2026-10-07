@@ -538,8 +538,8 @@ function render() {
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
       ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address || "без адреса"}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${o.id}">снять</button></div></div>
-        <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" />
-        <input data-sum="${o.id}" type="number" min="0" value="${o.sum||0}" title="сумма грн" /></div>`).join("")}
+        <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" readonly />
+        <input data-sum="${o.id}" type="number" min="0" value="${o.sum||0}" title="сумма грн" readonly /></div>`).join("")}
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
