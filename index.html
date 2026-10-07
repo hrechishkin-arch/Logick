@@ -61,6 +61,7 @@
       #printArea p { margin: 0 0 2px; }
       #printArea .truck-block { margin-top: 16px; padding-top: 10px; border-top: 1px solid #bbb; }
       #printArea .truck-name { margin: 0 0 6px; }
+      #printArea .stop-line { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; break-inside: avoid; }
       #printArea table { width: 100%; border-collapse: collapse; }
       #printArea td, #printArea th { border-bottom: 1px solid #ddd; padding: 3px 4px; text-align: left; vertical-align: top; }
       #printArea th { font-size: 10px; }
@@ -715,11 +716,9 @@ function pdf(id, closed) {
   const t = state.trucks.find(x => x.id === id);
   const stops = state.orders.filter(o => o.truckId === id).sort((a,b) => (a.seq||0) - (b.seq||0));
   const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
-  const line = (o) => String(o.orderNo || "").replace(/(\d{2}\.\d{2}\.\d{4}).*$/, "$1");
+  const rows = stops.map((o, i) => `<p class="stop-line"><b>${i + 1}. ${esc(o.counterparty || o.client || "Точка")}</b><br>${esc(o.address || "без адреса")}<br>${esc(orderLabel(o))} — ${money(o.sum)}</p>`).join("");
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<h2>Накладная</h2>
-    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Доставка: ${t.zone||"—"}<br>Склад: ${$("depot").value}<br>Точек: ${stops.length}<br>Общий километраж: ${t.kmTotal||"—"}</p>
-    <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
+  $("printArea").innerHTML = `<section class="sheet"><h2>Накладная</h2><p>Дата: ${fmt(t.date)}<br>Машина: ${esc(t.name || "")}<br>Доставка: ${esc(t.zone || "—")}<br>Склад: ${esc($("depot").value)}<br>Точек: ${stops.length}<br>Общий километраж: ${t.kmTotal || "—"}<br>Сумма: ${money(sum)}</p>${rows}</section>`;
   const prevTitle = document.title; document.title = " "; window.print(); document.title = prevTitle;
 }
 load();
