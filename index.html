@@ -482,8 +482,7 @@ function render() {
   const list = dayOrders();
   const away = state.orders.filter(o => !o.truckId && (outsideKyiv(o) || o.zone === "Белая Церковь"));
   const basket = list.filter(o => !o.truckId && (!o.address || o.basket) && !outsideKyiv(o));
-  const dLoad = $("date").value;
-  const queued = state.orders.filter(o => o.address && !o.truckId && !outsideKyiv(o) && o.zone !== "Белая Церковь" && (o.date === dLoad || !o.date));
+  const queued = list.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь");
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
@@ -494,6 +493,7 @@ function render() {
   if (!basket.length) $("basket").innerHTML = empty;
   if (!away.length) $("away").innerHTML = empty;
   $("queue").innerHTML = queued.length ? queued.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.zone}</b> ${o.client}<div class="muted">${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") : empty;
+  bind();
   if (state.tab === "month") return;
   let trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
   if (state.tab === "trip" && state.focusTruck) trucks = state.trucks.filter(t => t.id === state.focusTruck);
