@@ -336,6 +336,7 @@ $("loadPack").onclick = () => {
   state.date = day;
   $("pack").value = "";
   save();
+  const noAddr = rows.filter(r => !r.address).length;
   const awayN = rows.filter(r => outsideKyiv(r)).length;
   alert(label + ": добавлено " + added + ", уже были и пропущены " + skipped + ". Без адреса: " + noAddr + ". Вне области в командировку: " + awayN + ".");
 };
@@ -468,7 +469,8 @@ function render() {
   const list = dayOrders();
   const away = state.orders.filter(o => !o.truckId && (outsideKyiv(o) || o.zone === "Белая Церковь"));
   const basket = list.filter(o => !o.truckId && (!o.address || o.basket) && !outsideKyiv(o));
-  const queued = list.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь");
+  const dLoad = $("date").value;
+  const queued = state.orders.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь" && o.lane !== "trip" && (!o.date || o.date === dLoad));
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
