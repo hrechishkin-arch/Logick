@@ -29,6 +29,8 @@
     textarea { min-height: 110px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .load-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .load-btns button { width: 100%; min-height: 38px; }
     .muted { color: #777; font-size: 12px; }
     .truck { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin: 8px 0; background: #fff; }
     .truck.head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
@@ -85,7 +87,7 @@
     </div>
     <label>Вставьте график из Excel</label>
     <textarea id="pack" placeholder="Скопируйте из Excel вместе с шапкой: Заказ покупателя, Организация, Контрагент, Сумма, Дата отгрузки, Магазин"></textarea>
-    <div class="btns">
+    <div class="load-btns">
       <button class="acc" id="loadPack">Добавить заявки</button>
       <button id="autoBtn">Загрузить машины</button>
       <button class="danger" id="clearDay">Очистить день</button>
