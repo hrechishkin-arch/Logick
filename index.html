@@ -37,8 +37,8 @@
     .stop { display: grid; grid-template-columns: 22px 1fr 70px 90px; gap: 6px; padding: 6px 0; border-bottom: 1px dashed var(--line); align-items: start; }
     .basket { background: #f7f1e4; border-radius: 10px; padding: 8px; margin-top: 8px; }
     .week button { margin: 0 4px 4px 0; }
-    .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .daycell { border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-height: 78px; text-align: left; background: #fff; }
+    .cal { display: grid; grid-template-columns: repeat(7, minmax(90px, 1fr)); gap: 6px; }
+    .daycell { border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-height: 78px; text-align: left; background: #fff; color: #111; }
     .daycell.mon, .daycell.mon button { background: #f6e7a8; }
     .daycell.weekend, .daycell.weekend button { background: #d7ebfa; color: #111; }
     .daycell b { display: block; color: #111; }
@@ -409,7 +409,7 @@ function monthCells() {
     const weekTrucks = state.trucks.filter(t => t.lane === "week" && t.date === iso);
     const trips = state.trucks.filter(t => t.lane === "trip" && t.date === iso);
     const wd = x.getDay();
-    cells.push({ iso, label: fmt(iso), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo: Math.floor(i / 7) + 1, tone: wd === 1 ? "mon" : (wd === 0 || wd === 6 ? "weekend" : ""), wd });
+    cells.push({ iso, label: iso.slice(8)+"."+iso.slice(5,7), dayN, weekN, dayTrucks, weekTrucks, trips, weekNo: Math.floor(i / 7) + 1, tone: wd === 1 ? "mon" : (wd === 0 || wd === 6 ? "weekend" : ""), wd });
   }
   return cells;
 }
