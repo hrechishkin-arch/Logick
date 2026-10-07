@@ -556,9 +556,6 @@ function bind() {
     const o = state.orders.find(x => x.id === el.dataset.to);
     const t = state.trucks.find(x => x.id === el.value);
     if (!o || !t) return;
-    if (o.address && t.zone && o.zone && t.zone !== o.zone) {
-      if (!confirm("Адрес в зоне «" + o.zone + "», машина привязана к «" + t.zone + "». Всё равно добавить?")) { el.value = ""; return; }
-    }
     if (!t.zone && o.zone) t.zone = o.zone;
     o.truckId = t.id;
     o.basket = false;
