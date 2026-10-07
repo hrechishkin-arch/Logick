@@ -400,7 +400,7 @@ $("gotoTrip") && ($("gotoTrip").onclick = () => document.querySelector('[data-ta
 function monthCells() {
   const start = new Date(); start.setHours(12,0,0,0);
   const cells = [];
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < 42; i++) {
     const x = new Date(start); x.setDate(start.getDate() + i);
     const iso = localISO(x);
     const dayN = state.orders.filter(o => o.lane === "day" && o.date === iso).length;
