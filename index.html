@@ -436,7 +436,7 @@ function render() {
     const cells = monthCells();
     const names = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
     const head = cells.slice(0,7).map(c => `<div class="muted" style="${c.tone==="mon"?"color:#8a6a00":c.tone==="weekend"?"color:#2f6b32":""}">${names[c.wd]}</div>`).join("");
-    $("board").innerHTML = `<div class="month">${[1,2,3,4,5].map(n => {
+    $("board").innerHTML = `<div class="month">${[1,2,3,4,5,6].map(n => {
       const days = cells.filter(c => c.weekNo === n).map(c => `<div class="daycell ${c.tone}"><b>${fmt(c.iso)}</b>
         <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
         <button class="m" data-open="${c.iso}" data-lane="trip">командировка: ${c.trips.length} маш.</button>
