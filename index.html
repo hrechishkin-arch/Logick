@@ -98,7 +98,6 @@
       <h2 id="boardTitle">Машины дня</h2>
       <button class="acc" id="addTruckBtn">+ машина</button>
     </div>
-    <p class="muted">Командировка не чистится кнопкой дня.</p>
     <div id="board"></div>
   </section>
   <section class="card">
@@ -441,7 +440,7 @@ function render() {
         <button class="m" data-open="${c.iso}" data-lane="day">день: ${c.dayTrucks.length} маш.</button>
         <button class="m" data-open="${c.iso}" data-lane="trip">командировка: ${c.trips.length} маш.</button>
       </div>`).join("");
-      return `<div class="muted" style="margin:10px 0 4px">Неделя ${n}</div><div class="cal">${head}${days}</div>`;
+      return `<div class="cal" style="margin-top:8px">${head}${days}</div>`;
     }).join("");
     document.querySelectorAll("[data-open]").forEach(el => el.onclick = () => {
       $("date").value = el.dataset.open;
