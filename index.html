@@ -7,7 +7,9 @@
   <link rel="icon" href="favicon.png?v=46" type="image/png" />
   <link rel="apple-touch-icon" href="favicon.png?v=46" />
   <style>
-    :root { --bg:#f3efe6; --ink:#1c1c1c; --line:#d8d0c2; --card:#fffdf8; --acc:#1c8fe6; --warn:#d15b5b; }
+    :root { --bg:#f3efe6; --ink:#1c1c1c; --line:#d8d0c2; --card:#fffdf8; --acc:#d7ebfa; --warn:#1c1c1c; }
+    .tabs button.on, button.acc { background: var(--acc); color: #1c4f78; }
+    button.danger { background: var(--warn); color: #fff; }
     * { box-sizing: border-box; }
     body { margin: 0; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
     header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 18px; }
@@ -15,8 +17,8 @@
     .brand img { height: 58px; width: auto; display: block; }
     .tabs { display: flex; gap: 6px; }
     .tabs button, button { border: 0; border-radius: 10px; padding: 8px 12px; font-weight: 650; cursor: pointer; background: #ece6da; }
-    .tabs button.on { background: var(--acc); color: #fff; }
-    button.acc { background: var(--acc); color: #fff; }
+    .tabs button.on { background: var(--acc); color: #1c4f78; }
+    button.acc { background: var(--acc); color: #1c4f78; }
     button.danger { background: var(--warn); color: #fff; }
     main { display: grid; grid-template-columns: 340px 1fr 300px; gap: 12px; padding: 0 16px 28px; }
     @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
@@ -414,21 +416,32 @@ function monthCells() {
 function localISO(d) {
   return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 }
+function openTrip(id) {
+  const t = state.trucks.find(x => x.id === id);
+  if (!t) return;
+  state.tab = "trip";
+  state.focusTruck = t.id;
+  state.showDate = false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t.date)) { state.date = t.date; $("date").value = t.date; }
+  document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "trip"));
+  save();
+  const card = document.getElementById("board");
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 function render() {
   const l = lane(), d = activeDate();
   $("boardTitle").textContent = state.tab === "month" ? "Месяц вперёд" : l === "trip" ? "Командировка" : "Машины на " + fmt(d);
   const trips = state.trucks.filter(t => t.lane === "trip").sort((a,b) => String(a.date).localeCompare(String(b.date)));
   $("tripList").innerHTML = trips.map(t => {
     const n = state.orders.filter(o => o.truckId === t.id).length;
-    return `<button data-trip="${t.id}" style="display:block;width:100%;text-align:left;margin:0 0 6px">${fmt(t.date) || "без даты"} · ${t.name || "Командировка"} · ${n} зак.</button>`;
+    return `<div style="display:flex;gap:4px;margin:0 0 6px"><button data-trip="${t.id}" style="flex:1;text-align:left">${fmt(t.date) || "без даты"} · ${t.name || "Командировка"} · ${n} зак.</button><button data-tripx="${t.id}" title="убрать">×</button></div>`;
   }).join("") || "<span class='muted'>Командировок нет</span>";
-  document.querySelectorAll("[data-trip]").forEach(el => el.onclick = () => {
-    const t = state.trucks.find(x => x.id === el.dataset.trip);
-    if (!t) return;
-    state.tab = "trip";
-    state.focusTruck = t.id;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(t.date)) { state.date = t.date; $("date").value = t.date; }
-    document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "trip"));
+  document.querySelectorAll("[data-trip]").forEach(el => el.onclick = () => openTrip(el.dataset.trip));
+  document.querySelectorAll("[data-tripx]").forEach(el => el.onclick = () => {
+    const id = el.dataset.tripx;
+    state.orders.forEach(o => { if (o.truckId === id) { o.truckId = null; o.basket = !o.address; } });
+    state.trucks = state.trucks.filter(t => t.id !== id);
+    if (state.focusTruck === id) state.focusTruck = "";
     save();
   });
   const list = dayOrders();
