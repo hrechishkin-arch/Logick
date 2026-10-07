@@ -148,7 +148,7 @@ const WD = ["вс","пн","вт","ср","чт","пт","сб"];
 const WEEK_POS = {пн:0,вт:1,ср:2,чт:3,пт:4,сб:5,вс:6,нд:6};
 let state = { orders: [], trucks: [], date: "", depot: "Столичное шоссе, 100, Киев", defaultCap: 1500, kmLimit: 120, perTruck: 12, tab: "day" };
 const $ = (id) => document.getElementById(id);
-function load() { try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {} state.orders ||= []; state.trucks ||= []; state.dupes ||= []; }
+function load() { try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e) {} state.orders ||= []; state.trucks ||= []; state.dupes ||= []; state.imported ||= {}; }
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); render(); }
 function uid() { return Math.random().toString(36).slice(2, 9); }
 const LOCAL = new Set([...KYIV, ...OBLAST, "Украинка", "Киев · район не определён"]);
@@ -371,6 +371,12 @@ $("loadPack").onclick = () => {
   const useDate = $("date").value || day;
   const seenInPaste = new Set();
   state.dupes ||= [];
+  state.imported ||= {};
+  const rememberImport = (date, key) => {
+    if (!date || !key) return;
+    const list = state.imported[date] || (state.imported[date] = []);
+    if (!list.includes(key)) list.push(key);
+  };
   rows.forEach(p => {
     const key = orderKey(p.orderNo || p.note);
     const lane = outsideKyiv(p) ? "trip" : destLane;
@@ -381,6 +387,7 @@ $("loadPack").onclick = () => {
       return;
     }
     if (key) seenInPaste.add(key);
+    if (key) rememberImport(dupeDate, key);
     const existing = key ? state.orders.find(o => orderKey(o.orderNo || o.note) === key) : null;
     if (existing && !existing.truckId) {
       existing.date = p.date || useDate;
@@ -458,6 +465,7 @@ $("clearDay").onclick = () => {
     state.orders = state.orders.filter(o => !(o.lane === "day" && (o.date === d || !o.truckId)));
     state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
     state.dupes = (state.dupes || []).filter(x => x.date !== d);
+    if (state.imported) delete state.imported[d];
   }
   save();
 };
@@ -710,7 +718,18 @@ function dayReport(date) {
   }).join("");
   const dupeBlock = dupes.length ? `<section class="truck-block"><p class="truck-name"><b>Дубли</b><br>снято ${dupes.length}</p>${dupes.map(o => `<p>${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${money(o.sum)} — продублирован и снят</p>`).join("")}</section>` : "";
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${loaded.length}<br>Загружено заказов: ${ordersN}<br>Дублей снято: ${dupes.length}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`;
+  const fromTable = new Set((state.imported && state.imported[date]) || []);
+  if (!fromTable.size) {
+    state.orders.filter(o => o.date === date).forEach(o => {
+      const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
+      if (key) fromTable.add(key);
+    });
+    dupes.forEach(o => {
+      const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
+      if (key) fromTable.add(key);
+    });
+  }
+  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Дублей снято: ${dupes.length}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`;
   const prev = document.title; document.title = " "; window.print(); document.title = prev;
 }
 function pdf(id, closed) {
