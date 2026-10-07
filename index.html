@@ -59,6 +59,8 @@
       #printArea h2 { font-size: 16px; margin: 0 0 6px; }
       #printArea h3 { font-size: 13px; margin: 10px 0 4px; break-after: avoid; }
       #printArea p { margin: 0 0 2px; }
+      #printArea .truck-block { margin-top: 16px; padding-top: 10px; border-top: 1px solid #bbb; }
+      #printArea .truck-name { margin: 0 0 6px; }
       #printArea table { width: 100%; border-collapse: collapse; }
       #printArea td, #printArea th { border-bottom: 1px solid #ddd; padding: 3px 4px; text-align: left; vertical-align: top; }
       #printArea th { font-size: 10px; }
@@ -372,7 +374,7 @@ $("loadPack").onclick = () => {
     const lane = outsideKyiv(p) ? "trip" : destLane;
     const dupeDate = p.date || useDate;
     if (key && seenInPaste.has(key)) {
-      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key, sum: p.sum, note: "продублирован и снят с дня" });
+      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key, sum: p.sum, counterparty: p.counterparty || p.client || "", note: "продублирован и снят" });
       duped++;
       return;
     }
@@ -392,7 +394,7 @@ $("loadPack").onclick = () => {
       return;
     }
     if (existing) {
-      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key || p.orderNo || "", sum: p.sum, note: "продублирован и снят с дня" });
+      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key || p.orderNo || "", sum: p.sum, counterparty: p.counterparty || p.client || "", note: "продублирован и снят" });
       duped++;
       return;
     }
@@ -671,8 +673,9 @@ function closeTrip(id) {
   save();
   pdf(id, true);
 }
-function esc(s) { return String(s ?? "").replace(/[&<>]/g, ch => ({ "&": "&", "<": "<", ">": ">" }[ch])); }
+function esc(s) { return String(s ?? "").replace(/[&<>]/g, ch => ch === "&" ? "\x26amp;" : ch === "<" ? "\x26lt;" : "\x26gt;"); }
 function orderLabel(o) { return orderKey(o.orderNo) || o.orderNo || "без номера"; }
+function partyOf(o) { return o.counterparty || o.client || ""; }
 function dayReport(date) {
   const trucks = state.trucks.filter(t => t.lane === "day" && t.date === date);
   if (!trucks.length) { alert("На эту дату нет машин."); return; }
@@ -698,14 +701,14 @@ function dayReport(date) {
   const ordersN = loaded.reduce((s, x) => s + x.stops.length, 0);
   const sumAll = loaded.reduce((s, x) => s + x.stops.reduce((a, o) => a + (Number(o.sum) || 0), 0), 0);
   const kmAll = loaded.reduce((s, x) => s + (Number(x.t.kmTotal) || 0), 0);
+  const orderLine = o => `<p>${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${money(o.sum)}</p>`;
   const blocks = loaded.map(({ t, stops }) => {
     const sum = stops.reduce((s, o) => s + (Number(o.sum) || 0), 0);
-    const lines = stops.map(o => `<p>${esc(orderLabel(o))} — ${money(o.sum)}</p>`).join("");
-    return `<p><b>${esc(t.name)}</b><br>заказов ${stops.length} · км ${t.kmTotal || "—"} · сумма ${money(sum)}</p>${lines}`;
+    return `<section class="truck-block"><p class="truck-name"><b>${esc(t.name)}</b><br>заказов ${stops.length} · км ${t.kmTotal || "—"} · сумма ${money(sum)}</p>${stops.map(orderLine).join("")}</section>`;
   }).join("");
-  const dupeBlock = dupes.length ? `<h3>Дубли</h3>${dupes.map(o => `<p>${esc(orderLabel(o))} — ${money(o.sum)} — продублирован и снят с дня</p>`).join("")}` : "";
+  const dupeBlock = dupes.length ? `<section class="truck-block"><p class="truck-name"><b>Дубли</b><br>снято ${dupes.length}</p>${dupes.map(o => `<p>${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${money(o.sum)} — продублирован и снят</p>`).join("")}</section>` : "";
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${loaded.length}<br>Заявок: ${ordersN}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`;
+  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${loaded.length}<br>Загружено заказов: ${ordersN}<br>Дублей снято: ${dupes.length}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`;
   const prev = document.title; document.title = " "; window.print(); document.title = prev;
 }
 function pdf(id, closed) {
