@@ -51,11 +51,16 @@
     .hide { display: none; }
     #printArea { display: none; }
     @media print {
-      @page { size: A4; margin: 0; }
+      @page { size: A4; margin: 12mm 14mm; }
       body * { display: none !important; }
       #printArea, #printArea * { display: block !important; visibility: visible; }
-      #printArea { position: static; width: auto; padding: 14mm; }
-      #printArea li { break-inside: avoid; margin-bottom: 8px; }
+      #printArea { position: static; width: auto; padding: 0; font-size: 11px; line-height: 1.3; color: #111; }
+      #printArea h2 { font-size: 16px; margin: 0 0 6px; }
+      #printArea h3 { font-size: 13px; margin: 10px 0 4px; break-after: avoid; }
+      #printArea .rep { break-inside: avoid; margin: 0 0 8px; }
+      #printArea table { width: 100%; border-collapse: collapse; }
+      #printArea td, #printArea th { border-bottom: 1px solid #ddd; padding: 3px 4px; text-align: left; vertical-align: top; }
+      #printArea th { font-size: 10px; }
     }
   </style>
 </head>
@@ -660,7 +665,7 @@ function dayReport(date) {
     ordersN += stops.length;
     sumAll += sum;
     kmAll += Number(t.kmTotal) || 0;
-    return `<h3>${t.name} · ${t.zone||""}</h3><p>Заявок: ${stops.length}. Общий километраж: ${t.kmTotal||"—"}. Сумма: ${money(sum)}</p><ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
+    return `<section class="rep"><h3>${t.name} · ${t.zone||""}</h3><p>Заявок: ${stops.length}. Километраж: ${t.kmTotal||"—"}. Сумма: ${money(sum)}</p><table><tr><th>№</th><th>Контрагент</th><th>Адрес</th><th>Заказ</th><th>Сумма</th></tr>${stops.map((o,i)=>`<tr><td>${i+1}</td><td>${o.client}</td><td>${o.address}</td><td>${line(o)}</td><td>${money(o.sum)}</td></tr>`).join("")}</table></section>`;
   }).join("");
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${trucks.length}<br>Заявок: ${ordersN}<br>Общий километраж: ${kmAll||"—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${$("depot").value}</p>${blocks}`;
