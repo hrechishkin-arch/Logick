@@ -323,7 +323,17 @@ $("loadPack").onclick = () => {
     rows = parsed.rows.map(r => ({ ...r, date: day }));
     label = parsed.wd.toUpperCase() + " " + day;
   }
-  if (!rows || !rows.length) { alert("На эту дату не найдено заявок"); return; }
+  if (!rows || !rows.length) {
+    rows = raw.split(/\r?\n/).map(line => {
+      const cells = splitRow(line);
+      const joined = cells.join(" ");
+      if (!orderKey(joined)) return null;
+      const shop = [...cells].reverse().find(c => /вул|бул|просп|шосе|церк|київ|киев|фора|атб|магаз/i.test(c)) || cells[cells.length - 1] || "";
+      const address = extractAddress(shop) || shop;
+      return { client: shop || "Точка", address, zone: guessZone(address + " " + shop), kg: 0, docs: 1, sum: 0, note: joined, orderNo: joined, shop, date: parseShipDate(joined) || day };
+    }).filter(Boolean).filter(r => r.date === day || outsideKyiv(r));
+  }
+  if (!rows.length) { alert("На эту дату не найдено заявок"); return; }
   const destLane = state.tab === "trip" ? "trip" : "day";
   let added = 0, skipped = 0;
   rows.forEach(p => {
@@ -481,7 +491,8 @@ function render() {
     save();
   });
   const dLoad = $("date").value;
-  const pool = state.orders.filter(o => !o.truckId && (o.date === dLoad || !o.date));
+  state.orders.forEach(o => { if (!o.truckId && !outsideKyiv(o)) o.lane = "day"; });
+  const pool = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && (o.date === dLoad || !o.date));
   const away = state.orders.filter(o => !o.truckId && outsideKyiv(o));
   const basket = pool.filter(o => (!o.address || o.basket) && !outsideKyiv(o));
   const queued = pool.filter(o => o.address && !o.basket && !outsideKyiv(o));
