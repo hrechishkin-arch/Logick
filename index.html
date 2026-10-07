@@ -77,11 +77,11 @@
       <div><label>Дата развоза</label><input id="date" type="date" /></div>
       <div><label>Лимит кг</label><input id="defaultCap" type="number" value="1500" /></div>
     </div>
-    <label>Склад / старт</label>
+    <label>Склад</label>
     <input id="depot" value="Столичное шоссе, 100, Киев" />
     <div class="row">
-      <div><label>Точек на машину</label><input id="perTruck" type="number" value="12" min="4" /></div>
-      <div><label>Общий километраж</label><input id="kmLimit" type="number" value="" placeholder="после маршрута" /></div>
+      <div><label>Количество заявок</label><input id="dayOrdersN" type="text" value="0" readonly /></div>
+      <div><label>Общий километраж</label><input id="dayKm" type="text" value="0" readonly /></div>
     </div>
     <label>Вставьте график из Excel</label>
     <textarea id="pack" placeholder="Скопируйте из Excel вместе с шапкой: Заказ покупателя, Организация, Контрагент, Сумма, Дата отгрузки, Магазин"></textarea>
@@ -89,6 +89,7 @@
       <button class="acc" id="loadPack">Добавить заявки</button>
       <button id="autoBtn">Загрузить машины</button>
       <button class="danger" id="clearDay">Очистить день</button>
+      <button id="dayReportBtn">Отчёт за день</button>
     </div>
     <p class="muted" id="loadStatus">Вставьте таблицу с шапкой и нажмите «Добавить заявки».</p>
     <p class="muted" id="estimate" style="display:none"></p>
@@ -311,6 +312,14 @@ function kmOf(n) { return Math.round(18 + Math.max(0, n - 1) * 4); }
 function sameDay(a, b) {
   return parseShipDate(a) === parseShipDate(b) || String(a || "") === String(b || "");
 }
+function dayTotals() {
+  const d = $("date").value;
+  const trucks = state.trucks.filter(t => t.lane === "day" && t.date === d);
+  const stops = state.orders.filter(o => trucks.some(t => t.id === o.truckId));
+  const km = trucks.reduce((s, t) => s + (Number(t.kmTotal) || 0), 0);
+  if ($("dayOrdersN")) $("dayOrdersN").value = String(stops.length);
+  if ($("dayKm")) $("dayKm").value = km ? String(km) : "0";
+}
 function fmt(d) {
   const m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? m[3] + "." + m[2] + "." + m[1] : (d || "");
@@ -382,8 +391,8 @@ $("autoBtn").onclick = () => {
   if (!list.length) { alert("Нет заявок с адресом на эту дату."); return; }
   list.forEach(o => o.truckId = null);
   const cap = Number($("defaultCap").value||1500);
-  const per = Number($("perTruck").value||12);
-  const kmLimit = Number($("kmLimit").value||120);
+  const per = Number(state.perTruck || 10);
+  const kmLimit = 120;
   const docsOf = o => Number(o.docs) || 1;
   const open = list.slice();
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
@@ -549,6 +558,7 @@ function render() {
     </div>`;
   }).join("") || "<p class='muted'>Машин нет. Плюс — добавить вручную, или загрузить машины.</p>";
   $("board").insertAdjacentHTML("beforeend", `<datalist id="zones">${[...KYIV,...OBLAST].map(z=>`<option value="${z}">`).join("")}</datalist>`);
+  dayTotals();
   bind();
 }
 function bind() {
@@ -639,14 +649,19 @@ function closeTrip(id) {
 }
 function dayReport(date) {
   const trucks = state.trucks.filter(t => t.lane === "day" && t.date === date);
-  if (!trucks.length) return;
+  if (!trucks.length) { alert("На эту дату нет машин."); return; }
+  const line = (o) => String(o.orderNo || "").replace(/(\d{2}\.\d{2}\.\d{4}).*$/, "$1");
+  let ordersN = 0, sumAll = 0, kmAll = 0;
   const blocks = trucks.map(t => {
-    const stops = state.orders.filter(o => o.truckId === t.id);
+    const stops = state.orders.filter(o => o.truckId === t.id).sort((a,b) => (a.seq||0) - (b.seq||0));
     const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
-    return `<h3>${t.name} · ${t.zone||""}</h3><p>Точек ${stops.length}, накладных ${stops.reduce((s,o)=>s+(Number(o.docs)||0),0)}, сумма ${money(sum)}</p><ol>${stops.map(o=>`<li>${o.client} — ${o.address} — ${money(o.sum)}</li>`).join("")}</ol>`;
+    ordersN += stops.length;
+    sumAll += sum;
+    kmAll += Number(t.kmTotal) || 0;
+    return `<h3>${t.name} · ${t.zone||""}</h3><p>Заявок: ${stops.length}. Общий километраж: ${t.kmTotal||"—"}. Сумма: ${money(sum)}</p><ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
   }).join("");
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<h2>Накладная за ${fmt(date)}</h2><p>Машин: ${trucks.length}. Склад: ${$("depot").value}</p>${blocks}`;
+  $("printArea").innerHTML = `<h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${trucks.length}<br>Заявок: ${ordersN}<br>Общий километраж: ${kmAll||"—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${$("depot").value}</p>${blocks}`;
   const prev = document.title; document.title = " "; window.print(); document.title = prev;
 }
 function pdf(id, closed) {
@@ -656,7 +671,7 @@ function pdf(id, closed) {
   const line = (o) => String(o.orderNo || "").replace(/(\d{2}\.\d{2}\.\d{4}).*$/, "$1");
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Накладная</h2>
-    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Доставка: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}<br>Общий километраж: ${t.kmTotal||"—"}</p>
+    <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Доставка: ${t.zone||"—"}<br>Склад: ${$("depot").value}<br>Точек: ${stops.length}<br>Общий километраж: ${t.kmTotal||"—"}</p>
     <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
   const prevTitle = document.title; document.title = " "; window.print(); document.title = prevTitle;
 }
@@ -664,9 +679,8 @@ load();
 $("date").value = state.date || new Date(Date.now()+86400000).toISOString().slice(0,10);
 $("depot").value = state.depot;
 $("defaultCap").value = state.defaultCap;
-$("kmLimit").value = state.kmLimit || 120;
-$("perTruck").value = state.perTruck || 12;
-["depot","defaultCap","kmLimit","perTruck"].forEach(id => $(id).onchange = () => { state[id] = id==="depot" ? $(id).value : Number($(id).value); save(); });
+["depot","defaultCap"].forEach(id => $(id).onchange = () => { state[id] = id==="depot" ? $(id).value : Number($(id).value); save(); });
+$("dayReportBtn").onclick = () => dayReport($("date").value);
 $("date").onchange = () => { state.date = $("date").value; save(); };
 document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === state.tab));
 render();
