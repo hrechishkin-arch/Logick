@@ -668,7 +668,7 @@ function dayReport(date) {
     return `<p><b>${t.name}</b> · заказов ${stops.length} · км ${t.kmTotal||"—"} · сумма ${money(sum)}<br>${stops.map(o => (orderKey(o.orderNo) || o.orderNo || "без номера") + " " + money(o.sum)).join(" · ")}</p>`;
   }).join("");
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${trucks.length}. Заказов: ${ordersN}. Общий километраж: ${kmAll||"—"}. Сумма отгрузки: ${money(sumAll)}. Склад: ${$("depot").value}</p>${blocks}</section>`;
+  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${trucks.length}<br>Заявок: ${ordersN}<br>Общий километраж: ${kmAll||"—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${$("depot").value}</p>${blocks}</section>`;
   const prev = document.title; document.title = " "; window.print(); document.title = prev;
 }
 function pdf(id, closed) {
