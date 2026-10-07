@@ -356,6 +356,7 @@ $("loadPack").onclick = () => {
       existing.address = p.address;
       existing.zone = p.zone;
       existing.client = p.client;
+      existing.counterparty = p.counterparty || p.client;
       existing.shop = p.shop;
       existing.sum = p.sum;
       existing.basket = !p.address;
@@ -513,7 +514,7 @@ function render() {
   $("basket").innerHTML = basket.length ? basket.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || "без номера"}</b> · ${o.client}<div class="muted">${o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${trucksOf().map(t=>`<option value="${t.id}">${t.name}</option>`).join("")}</select> <button data-del="${o.id}">×</button></div>`).join("") : empty;
   if (!basket.length) $("basket").innerHTML = empty;
   if (!away.length) $("away").innerHTML = empty;
-  $("queue").innerHTML = queued.length ? queued.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.zone || "без номера"}</b> · ${o.client}<div class="muted">${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") : empty;
+  $("queue").innerHTML = queued.length ? queued.map(o => `<div style="padding:6px 0;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.zone || "без номера"}</b> · ${o.counterparty || o.client || "без контрагента"}<div class="muted">${o.zone || ""} · ${o.address}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`).join("") : empty;
   bind();
   if (state.tab === "month") return;
   let trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
