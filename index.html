@@ -453,7 +453,7 @@ $("autoBtn").onclick = () => {
 $("addTruckBtn").onclick = () => {
   const l = state.tab === "month" ? "day" : lane();
   const d = l === "trip" ? ($("date").value || new Date().toISOString().slice(0,10)) : activeDate();
-  state.trucks.push({ id: uid(), name: l === "trip" ? "Командировка" : "Машина", lane: l, date: d, zone: "", cap: Number($("defaultCap").value||1500), kmLimit: Number($("kmLimit").value||120), driver: "" });
+  state.trucks.push({ id: uid(), name: l === "trip" ? "Командировка" : "Машина", lane: l, date: d, zone: "", cap: Number($("defaultCap").value||1500), kmLimit: Number(state.kmLimit || 120), driver: "" });
   save();
 };
 $("clearDay").onclick = () => {
