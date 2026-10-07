@@ -50,10 +50,6 @@
     .zone-row input { background: #fff; }
     .hide { display: none; }
     #printArea { display: none; }
-    #gate { position: fixed; inset: 0; z-index: 40; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 16px; }
-    #gate.hide, #adminBox.hide { display: none; }
-    #gate .card { width: min(420px, 100%); }
-    #gate h2 { font-size: 20px; }
     @media print {
       @page { size: A4; margin: 0; }
       body * { display: none !important; }
@@ -74,35 +70,12 @@
   </style>
 </head>
 <body>
-<div id="gate" class="hide">
-  <section class="card">
-    <h2>Logick</h2>
-    <p class="muted" id="gateLead">Вход по паролю. Ссылку без пароля открыть нельзя.</p>
-    <label>Пароль</label>
-    <input id="gatePass" type="password" autocomplete="current-password" />
-    <div class="btns">
-      <button class="acc" id="gateEnter">Войти</button>
-      <button id="gateAdminBtn">Админ</button>
-    </div>
-    <div id="adminBox" class="hide">
-      <label>Текущий пароль админа</label>
-      <input id="adminNow" type="password" autocomplete="current-password" />
-      <label>Новый пароль входа</label>
-      <input id="adminSite" type="password" autocomplete="new-password" />
-      <label>Новый пароль админа</label>
-      <input id="adminNext" type="password" autocomplete="new-password" />
-      <button class="acc" id="adminSave">Сохранить пароль</button>
-    </div>
-    <p class="muted" id="gateMsg"></p>
-  </section>
-</div>
 <header>
   <div>
     <div class="brand">
       <img src="logo.png" alt="Logick" />
     </div>
   </div>
-  <button id="adminOpen" type="button">Админ</button>
   <div class="tabs">
     <button class="on" data-tab="day">День</button>
     <button data-tab="month">Месяц</button>
@@ -153,66 +126,6 @@
 </main>
 <div id="printArea" class="hide"></div>
 <script>
-const ACCESS = { site: "", admin: "" };
-const GATE_STORE = "logick-access";
-const sha256 = async (s) => {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
-};
-const accessNow = () => {
-  let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(GATE_STORE) || "{}"); } catch (e) {}
-  return { site: saved.site || ACCESS.site, admin: saved.admin || ACCESS.admin };
-};
-const gateOpen = (on) => {
-  const gate = document.getElementById("gate");
-  if (gate) gate.classList.toggle("hide", !on);
-};
-const sessionOk = () => {
-  const cur = accessNow();
-  if (!cur.site) return true;
-  return sessionStorage.getItem("logick-pass") === cur.site;
-};
-async function bootGate() {
-  const cur = accessNow();
-  const msg = document.getElementById("gateMsg");
-  const lead = document.getElementById("gateLead");
-  if (!cur.site) {
-    lead.textContent = "Пароль ещё не задан. Его может задать только админ на этом компьютере, затем его нужно опубликовать.";
-    document.getElementById("adminBox").classList.remove("hide");
-  }
-  gateOpen(!sessionOk());
-  document.getElementById("gateEnter").onclick = async () => {
-    const cur = accessNow();
-    if (!cur.site) { msg.textContent = "Сначала задайте пароль в панели админа."; return; }
-    const hash = await sha256(document.getElementById("gatePass").value);
-    if (hash !== cur.site) { msg.textContent = "Неверный пароль."; return; }
-    sessionStorage.setItem("logick-pass", hash);
-    msg.textContent = "";
-    gateOpen(false);
-  };
-  document.getElementById("gatePass").onkeydown = (e) => { if (e.key === "Enter") document.getElementById("gateEnter").click(); };
-  document.getElementById("gateAdminBtn").onclick = () => document.getElementById("adminBox").classList.toggle("hide");
-  document.getElementById("adminOpen").onclick = () => { document.getElementById("adminBox").classList.remove("hide"); gateOpen(true); };
-  document.getElementById("adminSave").onclick = async () => {
-    const cur = accessNow();
-    const now = document.getElementById("adminNow").value;
-    const site = document.getElementById("adminSite").value;
-    const next = document.getElementById("adminNext").value;
-    if (cur.admin) {
-      if (await sha256(now) !== cur.admin) { msg.textContent = "Неверный пароль админа."; return; }
-    } else if (now) {
-      msg.textContent = "Пароль админа ещё не задан. Оставьте текущий пустым только при первой установке.";
-    }
-    if (site.length < 4 || next.length < 4) { msg.textContent = "Оба новых пароля не короче 4 символов."; return; }
-    const saved = { site: await sha256(site), admin: await sha256(next) };
-    localStorage.setItem(GATE_STORE, JSON.stringify(saved));
-    sessionStorage.setItem("logick-pass", saved.site);
-    msg.textContent = "Пароль сохранён на этом компьютере. Чтобы закрыть ссылку для остальных, опубликуйте его.";
-    gateOpen(false);
-  };
-}
-document.addEventListener("DOMContentLoaded", bootGate);
 const KEY = "logick-v2";
 const KYIV = ["Голосеевский","Дарницкий","Деснянский","Днепровский","Оболонский","Печерский","Подольский","Святошинский","Соломенский","Шевченковский"];
 const OBLAST = ["Вишнёвое","Ирпень","Буча","Бровары","Борисполь","Обухов","Васильков","Вышгород","Белая Церковь","Гостомель","Боярка"];
