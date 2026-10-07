@@ -651,13 +651,13 @@ function dayReport(date) {
 }
 function pdf(id, closed) {
   const t = state.trucks.find(x => x.id === id);
-  const stops = state.orders.filter(o => o.truckId === id);
+  const stops = state.orders.filter(o => o.truckId === id).sort((a,b) => (a.seq||0) - (b.seq||0));
   const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
-  const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
+  const line = (o) => String(o.orderNo || "").replace(/(\d{2}\.\d{2}\.\d{4}).*$/, "$1");
   $("printArea").classList.remove("hide");
   $("printArea").innerHTML = `<h2>Накладная</h2>
     <p>Дата: ${fmt(t.date)}<br>Машина: ${t.name}<br>Зона: ${t.zone||"—"}<br>Старт: ${$("depot").value}<br>Точек: ${stops.length}</p>
-    <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${o.note||""}</li>`).join("")}</ol>`;
+    <ol>${stops.map(o=>`<li><b>${o.client}</b> — ${o.address}<br>накладных: ${o.docs||0}, сумма: ${money(o.sum)} ${line(o)}</li>`).join("")}</ol>`;
   window.print();
 }
 load();
