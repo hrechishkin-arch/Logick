@@ -320,7 +320,16 @@ $("loadPack").onclick = () => {
   const raw = $("pack").value;
   const orders = parseOrders(raw, day);
   let rows = orders;
-  if (orders === null) {
+  if (!rows || !rows.length) {
+    const any = parseOrders(raw, "");
+    if (any && any.length) {
+      const next = any.map(r => r.date).find(Boolean) || day;
+      $("date").value = next;
+      state.date = next;
+      rows = any.filter(r => !r.date || r.date === next || outsideKyiv(r));
+    }
+  }
+  if (orders === null && (!rows || !rows.length)) {
     const parsed = parseSchedule(raw, day, 0);
     rows = parsed.rows.map(r => ({ ...r, date: day }));
   }
@@ -481,10 +490,10 @@ function render() {
     save();
   });
   const dLoad = $("date").value;
-  const list = state.orders.filter(o => !o.truckId && (o.date === dLoad || !o.date));
-  const away = list.filter(o => outsideKyiv(o));
-  const basket = list.filter(o => !outsideKyiv(o) && (!o.address || o.basket));
-  const queued = list.filter(o => !outsideKyiv(o) && o.address && !o.basket);
+  const open = state.orders.filter(o => !o.truckId);
+  const away = open.filter(o => outsideKyiv(o));
+  const basket = open.filter(o => !outsideKyiv(o) && (o.date === dLoad || !o.date) && (!o.address || o.basket));
+  const queued = open.filter(o => !outsideKyiv(o) && (o.date === dLoad || !o.date) && o.address && !o.basket);
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
