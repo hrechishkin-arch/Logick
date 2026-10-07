@@ -318,64 +318,41 @@ function orderKey(s) {
 $("loadPack").onclick = () => {
   const day = $("date").value;
   const raw = $("pack").value;
-  const orders = parseOrders(raw, "");
-  let rows = Array.isArray(orders) ? orders : [];
-  let label = fmt(day);
-  if (!rows.length) {
+  const orders = parseOrders(raw, day);
+  let rows = orders;
+  if (orders === null) {
     const parsed = parseSchedule(raw, day, 0);
     rows = parsed.rows.map(r => ({ ...r, date: day }));
   }
-  if (!rows.length) {
-    rows = raw.split(/\r?\n/).map(line => {
-      const cells = splitRow(line);
-      const joined = cells.join(" ");
-      if (!orderKey(joined) && !parseShipDate(joined)) return null;
-      const shop = [...cells].reverse().find(c => /вул|бул|просп|шосе|церк|київ|киев|фора|атб|магаз/i.test(c)) || cells[cells.length - 1] || "";
-      const address = extractAddress(shop) || shop;
-      return { client: shop || "Точка", address, zone: guessZone(address + " " + shop), kg: 0, docs: 1, sum: 0, note: joined, orderNo: joined, shop, date: parseShipDate(joined) || day };
-    }).filter(Boolean);
-  }
-  const dated = rows.filter(r => r.date);
-  let useDate = day;
-  let shown = rows.filter(r => !r.date || r.date === day || outsideKyiv(r));
-  if (!shown.length && dated.length) {
-    useDate = dated.map(r => r.date).sort()[0];
-    shown = rows.filter(r => r.date === useDate || outsideKyiv(r));
-  }
-  if (!shown.length) shown = rows;
-  if (!shown.length) { alert("На эту дату не найдено заявок"); return; }
-  $("date").value = useDate;
-  state.date = useDate;
-  rows = shown;
-  const destLane = state.tab === "trip" ? "trip" : "day";
+  if (!rows || !rows.length) { alert("На эту дату не найдено заявок"); return; }
+  const destLane = "day";
   let added = 0, skipped = 0;
   rows.forEach(p => {
     const key = orderKey(p.orderNo || p.note);
     const lane = outsideKyiv(p) ? "trip" : destLane;
     const existing = key ? state.orders.find(o => orderKey(o.orderNo || o.note) === key) : null;
-    if (existing) {
-      if (!existing.truckId) {
-        existing.date = p.date || day;
-        existing.lane = lane;
-        existing.address = p.address;
-        existing.zone = p.zone;
-        existing.client = p.client;
-        existing.shop = p.shop;
-        existing.sum = p.sum;
-        existing.basket = !p.address;
-      }
+    if (existing && !existing.truckId) {
+      existing.date = p.date || day;
+      existing.lane = lane;
+      existing.address = p.address;
+      existing.zone = p.zone;
+      existing.client = p.client;
+      existing.shop = p.shop;
+      existing.sum = p.sum;
+      existing.basket = !p.address;
       skipped++;
       return;
     }
+    if (existing) { skipped++; return; }
     state.orders.push({ id: uid(), lane, truckId: null, date: p.date || day, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
     added++;
   });
-  state.date = useDate;
+  state.date = day;
   $("pack").value = "";
   save();
   const noAddr = rows.filter(r => !r.address).length;
   const awayN = rows.filter(r => outsideKyiv(r)).length;
-  alert(label + ": добавлено " + added + ", уже были и пропущены " + skipped + ". Без адреса: " + noAddr + ". Вне области в командировку: " + awayN + ".");
+  alert(fmt(day) + ": добавлено " + added + ", обновлено " + skipped + ". Без адреса: " + noAddr + ". Вне области: " + awayN + ".");
 };
 $("autoBtn").onclick = () => {
   const l = lane();
@@ -504,11 +481,10 @@ function render() {
     save();
   });
   const dLoad = $("date").value;
-  state.orders.forEach(o => { if (!o.truckId && !outsideKyiv(o)) o.lane = "day"; });
-  const pool = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && (o.date === dLoad || !o.date || fmt(o.date) === fmt(dLoad)));
-  const away = state.orders.filter(o => !o.truckId && outsideKyiv(o));
-  const basket = pool.filter(o => (!o.address || o.basket) && !outsideKyiv(o));
-  const queued = pool.filter(o => o.address && !o.basket && !outsideKyiv(o));
+  const list = state.orders.filter(o => !o.truckId && (o.date === dLoad || !o.date));
+  const away = list.filter(o => outsideKyiv(o));
+  const basket = list.filter(o => !outsideKyiv(o) && (!o.address || o.basket));
+  const queued = list.filter(o => !outsideKyiv(o) && o.address && !o.basket);
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
