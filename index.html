@@ -719,16 +719,14 @@ function dayReport(date) {
   const dupeBlock = dupes.length ? `<section class="truck-block"><p class="truck-name"><b>Дубли</b><br>снято ${dupes.length}</p>${dupes.map(o => `<p>${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${money(o.sum)} — продублирован и снят</p>`).join("")}</section>` : "";
   $("printArea").classList.remove("hide");
   const fromTable = new Set((state.imported && state.imported[date]) || []);
-  if (!fromTable.size) {
-    state.orders.filter(o => o.date === date).forEach(o => {
-      const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
-      if (key) fromTable.add(key);
-    });
-    dupes.forEach(o => {
-      const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
-      if (key) fromTable.add(key);
-    });
-  }
+  state.orders.filter(o => o.date === date).forEach(o => {
+    const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
+    if (key) fromTable.add(key);
+  });
+  dupes.forEach(o => {
+    const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
+    if (key) fromTable.add(key);
+  });
   const onTrucks = new Set();
   loaded.forEach(x => x.stops.forEach(o => {
     const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
