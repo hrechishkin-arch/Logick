@@ -614,19 +614,10 @@ function moveStop(id, dir) {
   save();
 }
 function route(id) {
-  const stops = state.orders.filter(o => o.truckId === id && o.address).sort((a,b) => (a.seq||0) - (b.seq||0));
+  const stops = state.orders.filter(o => o.truckId === id && o.address && !/міхнов|optimizer/i.test(o.address)).sort((a,b) => (a.seq||0) - (b.seq||0));
   if (!stops.length) { alert("В машине нет адресов."); return; }
-  const depot = $("depot").value;
-  const last = stops[stops.length - 1];
-  const mid = stops.slice(0, -1).map(o => o.address + ", Украина");
-  const q = new URLSearchParams({
-    api: "1",
-    origin: depot,
-    destination: last.address + ", Украина",
-    travelmode: "driving"
-  });
-  if (mid.length) q.set("waypoints", mid.join("|"));
-  window.open("https://www.google.com/maps/dir/?" + q.toString(), "_blank");
+  const parts = [$("depot").value, ...stops.map(o => o.address + ", Украина")].map(s => encodeURIComponent(s));
+  window.open("https://www.google.com/maps/dir/" + parts.join("/"), "_blank");
 }
 function closeTrip(id) {
   const t = state.trucks.find(x => x.id === id);
