@@ -729,7 +729,14 @@ function dayReport(date) {
       if (key) fromTable.add(key);
     });
   }
-  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Дублей снято: ${dupes.length}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`;
+  const onTrucks = new Set();
+  loaded.forEach(x => x.stops.forEach(o => {
+    const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
+    if (key) onTrucks.add(key);
+  }));
+  const aside = state.orders.filter(o => o.date === date && !onTrucks.has(orderKey(o.orderNo) || String(o.orderNo || "").trim()));
+  const asideLine = aside.length ? `<br>Не на дневных машинах: ${aside.length} — ${aside.map(o => esc(orderLabel(o)) + (o.lane === "trip" || outsideKyiv(o) ? " командировка" : o.truckId ? "" : " не в машине")).join("; ")}` : "";
+  $("printArea").innerHTML = `<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p>Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Дублей снято: ${dupes.length}${asideLine}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`;
   const prev = document.title; document.title = " "; window.print(); document.title = prev;
 }
 function pdf(id, closed) {
