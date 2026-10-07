@@ -479,10 +479,11 @@ function render() {
     if (state.focusTruck === id) state.focusTruck = "";
     save();
   });
-  const list = dayOrders();
+  const dLoad = $("date").value;
+  const pool = state.orders.filter(o => !o.truckId && (o.date === dLoad || !o.date));
   const away = state.orders.filter(o => !o.truckId && (outsideKyiv(o) || o.zone === "Белая Церковь"));
-  const basket = list.filter(o => !o.truckId && (!o.address || o.basket) && !outsideKyiv(o));
-  const queued = list.filter(o => o.address && !o.truckId && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь");
+  const basket = pool.filter(o => (!o.address || o.basket) && !outsideKyiv(o));
+  const queued = pool.filter(o => o.address && !o.basket && !outsideKyiv(o) && o.zone !== "Белая Церковь");
   const tripTrucks = state.trucks.filter(t => t.lane === "trip");
   const dayTrucks = state.trucks.filter(t => t.lane === "day" && t.date === $("date").value);
   const both = dayTrucks.map(t => `<option value="${t.id}">день ${fmt(t.date)} · ${t.name}</option>`).concat(tripTrucks.map(t => `<option value="${t.id}">командировка ${fmt(t.date)} · ${t.name}</option>`)).join("");
