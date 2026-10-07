@@ -86,6 +86,7 @@
       <button id="autoBtn">Загрузить машины</button>
       <button class="danger" id="clearDay">Очистить день</button>
     </div>
+    <p class="muted" id="loadStatus"></p>
     <p class="muted" id="estimate" style="display:none"></p>
     <h2 style="margin-top:16px">Без адреса</h2>
     <div class="basket" id="basket"><span style="color:#777">Пусто</span></div>
@@ -333,15 +334,16 @@ $("loadPack").onclick = () => {
     const parsed = parseSchedule(raw, day, 0);
     rows = parsed.rows.map(r => ({ ...r, date: day }));
   }
-  if (!rows || !rows.length) { alert("На эту дату не найдено заявок"); return; }
+  if (!rows || !rows.length) { $("loadStatus").textContent = "На эту дату не найдено заявок. Вставьте таблицу вместе с шапкой."; return; }
   const destLane = "day";
   let added = 0, skipped = 0;
+  const useDate = $("date").value || day;
   rows.forEach(p => {
     const key = orderKey(p.orderNo || p.note);
     const lane = outsideKyiv(p) ? "trip" : destLane;
     const existing = key ? state.orders.find(o => orderKey(o.orderNo || o.note) === key) : null;
     if (existing && !existing.truckId) {
-      existing.date = p.date || day;
+      existing.date = p.date || useDate;
       existing.lane = lane;
       existing.address = p.address;
       existing.zone = p.zone;
@@ -353,16 +355,15 @@ $("loadPack").onclick = () => {
       return;
     }
     if (existing) { skipped++; return; }
-    state.orders.push({ id: uid(), lane, truckId: null, date: p.date || day, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
+    state.orders.push({ id: uid(), lane, truckId: null, date: p.date || useDate, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
     added++;
   });
   state.orders.forEach(o => { if (o.address && !outsideKyiv(o)) o.basket = false; });
-  state.date = $("date").value || day;
+  state.date = useDate;
   $("pack").value = "";
   save();
-  const noAddr = rows.filter(r => !r.address).length;
-  const awayN = rows.filter(r => outsideKyiv(r)).length;
-  alert(fmt(day) + ": добавлено " + added + ", обновлено " + skipped + ". Без адреса: " + noAddr + ". Вне области: " + awayN + ".");
+  const dayN = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && o.address && (o.date === useDate || !o.date)).length;
+  $("loadStatus").textContent = fmt(useDate) + ": в очереди дня " + dayN + ". Добавлено " + added + ", обновлено " + skipped + ".";
 };
 $("autoBtn").onclick = () => {
   const l = lane();
