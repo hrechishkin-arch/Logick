@@ -336,15 +336,17 @@ $("loadPack").onclick = () => {
     }).filter(Boolean);
   }
   const dated = rows.filter(r => r.date);
-  const forDay = rows.filter(r => !r.date || r.date === day || outsideKyiv(r));
-  if (!forDay.length && dated.length) {
-    const next = dated.map(r => r.date).sort()[0];
-    $("date").value = next;
-    state.date = next;
-    rows = rows.filter(r => r.date === next || outsideKyiv(r));
-    label = fmt(next);
-  } else rows = forDay.length ? forDay : rows;
-  if (!rows.length) { alert("На эту дату не найдено заявок"); return; }
+  let useDate = day;
+  let shown = rows.filter(r => !r.date || r.date === day || outsideKyiv(r));
+  if (!shown.length && dated.length) {
+    useDate = dated.map(r => r.date).sort()[0];
+    shown = rows.filter(r => r.date === useDate || outsideKyiv(r));
+  }
+  if (!shown.length) shown = rows;
+  if (!shown.length) { alert("На эту дату не найдено заявок"); return; }
+  $("date").value = useDate;
+  state.date = useDate;
+  rows = shown;
   const destLane = state.tab === "trip" ? "trip" : "day";
   let added = 0, skipped = 0;
   rows.forEach(p => {
@@ -368,7 +370,7 @@ $("loadPack").onclick = () => {
     state.orders.push({ id: uid(), lane, truckId: null, date: p.date || day, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
     added++;
   });
-  state.date = day;
+  state.date = useDate;
   $("pack").value = "";
   save();
   const noAddr = rows.filter(r => !r.address).length;
@@ -503,7 +505,7 @@ function render() {
   });
   const dLoad = $("date").value;
   state.orders.forEach(o => { if (!o.truckId && !outsideKyiv(o)) o.lane = "day"; });
-  const pool = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && (o.date === dLoad || !o.date));
+  const pool = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && (o.date === dLoad || !o.date || fmt(o.date) === fmt(dLoad)));
   const away = state.orders.filter(o => !o.truckId && outsideKyiv(o));
   const basket = pool.filter(o => (!o.address || o.basket) && !outsideKyiv(o));
   const queued = pool.filter(o => o.address && !o.basket && !outsideKyiv(o));
