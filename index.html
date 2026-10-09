@@ -351,6 +351,29 @@ function money(n) {
   return (Number(n) || 0).toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " грн";
 }
 
+function addrKey(o) {
+  let s = String(o.address || "").toLowerCase().replace(/ё/g, "е");
+  s = s.replace(/вулиця|вул\.?|ул\.?/g, "вул ");
+  s = s.replace(/шоссе/g, "шосе");
+  s = s.replace(/проспект|просп\.?|пр-т/g, "просп ");
+  s = s.replace(/бульвар|бул\.?/g, "бул ");
+  s = s.replace(/місто|город|село|селище/g, " ");
+  s = s.replace(/(^|[\s,])(м|с|смт|пгт)\.?\s*/g, " ");
+  s = s.replace(/р-н|район/g, " ");
+  s = s.replace(/[^a-zа-яіїє0-9]+/gi, " ");
+  return s.replace(/\s+/g, " ").trim();
+}
+function groupStops(stops) {
+  const groups = [];
+  const index = new Map();
+  stops.forEach(o => {
+    const key = addrKey(o) || ("id:" + o.id);
+    let g = index.get(key);
+    if (!g) { g = { key, orders: [] }; index.set(key, g); groups.push(g); }
+    g.orders.push(o);
+  });
+  return groups;
+}
 function orderKey(s) {
   const map = { "А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","О":"O","Р":"P","С":"C","Т":"T","Х":"X","І":"I","Ї":"I","Є":"E","Ф":"F","Г":"G" };
   const raw = String(s || "").toUpperCase();
@@ -448,13 +471,12 @@ $("autoBtn").onclick = () => {
     while (left.length) {
       const truck = { id: uid(), name: left.length > per || n > 1 ? zone + " " + n : zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
       state.trucks.push(truck);
+      const groups = groupStops(left);
       const taken = [];
-      left.forEach(o => {
-        if (taken.reduce((s,x)=>s+docsOf(x),0) + docsOf(o) > per) return;
-        taken.push(o);
-      });
-      if (!taken.length) taken.push(left[0]);
-      taken.forEach((o,i) => { o.truckId = truck.id; o.seq = i + 1; });
+      groups.forEach(g => { if (taken.length >= per) return; taken.push(g); });
+      if (!taken.length && groups.length) taken.push(groups[0]);
+      let seq = 1;
+      taken.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; }));
       n++;
       left = open.filter(o => !o.truckId && (o.zone || "Без района") === zone);
     }
@@ -582,7 +604,7 @@ function render() {
     const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
     const over = km > (t.kmLimit||120);
     return `<div class="truck">
-      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag">${t.lane==="trip"?"командировка":"день"} · ${stops.length} точ. · ${t.kmTotal?t.kmTotal+" км":"км не указан"} · ${docs} накл. · ${money(sum)}</span></div>
+      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag">${t.lane==="trip"?"командировка":"день"} · ${groupStops(stops).length} точ. · ${stops.length} зак. · ${t.kmTotal?t.kmTotal+" км":"км не указан"} · ${docs} накл. · ${money(sum)}</span></div>
       <div class="row zone-row">
         <input data-rename="${t.id}" value="${String(t.name||"").replaceAll('"','')}" placeholder="Название машины" />
         <input data-zone="${t.id}" value="${t.zone||""}" placeholder="Район или пункт" list="zones" />
@@ -593,9 +615,16 @@ function render() {
       </div>
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
-      ${stops.map((o,i)=>`<div class="stop"><b>${i+1}</b><div><b>${o.client}</b><div class="muted">${o.address || "без адреса"}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${o.id}">снять</button></div></div>
-        <input data-docs="${o.id}" type="number" min="0" value="${o.docs||0}" title="накладных" readonly />
-        <input data-sum="${o.id}" type="text" value="${(Number(o.sum)||0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`).join("")}
+      ${groupStops(stops).map((g,i)=>{
+        const o = g.orders[0];
+        const n = g.orders.length;
+        const sum = g.orders.reduce((s,x)=>s+(Number(x.sum)||0),0);
+        const names = [...new Set(g.orders.map(x => x.counterparty || x.client).filter(Boolean))].join(", ");
+        const nums = g.orders.map(x => orderKey(x.orderNo) || x.orderNo).filter(Boolean).join(", ");
+        return `<div class="stop"><b>${i+1}</b><div><b>${names || o.client}</b> · ${n} зак.<div class="muted">${o.address || "без адреса"}</div><div class="muted">${nums}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${o.id}">снять</button></div></div>
+        <input data-docs="${o.id}" type="number" min="0" value="${n}" title="заказов" readonly />
+        <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
+      }).join("")}
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
@@ -649,8 +678,10 @@ function bind() {
   document.querySelectorAll("[data-basket]").forEach(el => el.onclick = () => {
     const o = state.orders.find(x => x.id === el.dataset.basket);
     if (!o) return;
-    o.truckId = null;
-    o.basket = !o.address;
+    const key = addrKey(o);
+    state.orders.forEach(x => {
+      if (x.truckId === o.truckId && addrKey(x) === key) { x.truckId = null; x.basket = !x.address; }
+    });
     save();
   });
   document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => {
@@ -666,16 +697,21 @@ function moveStop(id, dir) {
   const o = state.orders.find(x => x.id === id);
   if (!o) return;
   const list = state.orders.filter(x => x.truckId === o.truckId).sort((a,b) => (a.seq||0) - (b.seq||0));
-  list.forEach((x,i) => x.seq = i+1);
-  const i = list.findIndex(x => x.id === id), j = i + dir;
-  if (j < 0 || j >= list.length) return;
-  const s = list[i].seq; list[i].seq = list[j].seq; list[j].seq = s;
+  const groups = groupStops(list);
+  const gi = groups.findIndex(g => g.orders.some(x => x.id === id));
+  const gj = gi + dir;
+  if (gi < 0 || gj < 0 || gj >= groups.length) return;
+  const next = groups.slice();
+  const [item] = next.splice(gi, 1);
+  next.splice(gj, 0, item);
+  let seq = 1;
+  next.forEach(g => g.orders.forEach(x => { x.seq = seq++; }));
   save();
 }
 function route(id) {
   const stops = state.orders.filter(o => o.truckId === id && o.address && !/міхнов|optimizer/i.test(o.address)).sort((a,b) => (a.seq||0) - (b.seq||0));
   if (!stops.length) { alert("В машине нет адресов."); return; }
-  const parts = [$("depot").value, ...stops.map(o => o.address + ", Украина")].map(s => encodeURIComponent(s));
+  const parts = [$("depot").value, ...groupStops(stops).map(g => g.orders[0].address + ", Украина")].map(s => encodeURIComponent(s));
   window.open("https://www.google.com/maps/dir/" + parts.join("/"), "_blank");
 }
 function closeTrip(id) {
@@ -752,9 +788,14 @@ function pdf(id, closed) {
   const t = state.trucks.find(x => x.id === id);
   const stops = state.orders.filter(o => o.truckId === id).sort((a,b) => (a.seq||0) - (b.seq||0));
   const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
-  const rows = stops.map((o, i) => `<p class="stop-line"><b>${i + 1}. ${esc(o.counterparty || o.client || "Точка")}</b><br>${esc(o.address || "без адреса")}<br>${esc(orderLabel(o))} — ${money(o.sum)}</p>`).join("");
+  const rows = groupStops(stops).map((g, i) => {
+    const o = g.orders[0];
+    const sum = g.orders.reduce((s,x)=>s+(Number(x.sum)||0),0);
+    const nums = g.orders.map(x => esc(orderLabel(x)) + " — " + money(x.sum)).join("<br>");
+    return `<p class="stop-line"><b>${i + 1}. ${esc(o.counterparty || o.client || "Точка")}</b> · ${g.orders.length} зак.<br>${esc(o.address || "без адреса")}<br>${nums}<br>сумма позиции: ${money(sum)}</p>`;
+  }).join("");
   $("printArea").classList.remove("hide");
-  $("printArea").innerHTML = `<section class="sheet"><h2>Накладная</h2><p class="inv-head">Дата: ${fmt(t.date)}<br>Машина: ${esc(t.name || "")}<br>Доставка: ${esc(t.zone || "—")}<br>Склад: ${esc($("depot").value)}<br>Точек: ${stops.length}<br>Общий километраж: ${t.kmTotal || "—"}<br>Сумма: ${money(sum)}</p>${rows}</section>`;
+  $("printArea").innerHTML = `<section class="sheet"><h2>Накладная</h2><p class="inv-head">Дата: ${fmt(t.date)}<br>Машина: ${esc(t.name || "")}<br>Доставка: ${esc(t.zone || "—")}<br>Склад: ${esc($("depot").value)}<br>Точек: ${groupStops(stops).length}<br>Заказов: ${stops.length}<br>Общий километраж: ${t.kmTotal || "—"}<br>Сумма: ${money(sum)}</p>${rows}</section>`;
   const prevTitle = document.title; document.title = " "; window.print(); document.title = prevTitle;
 }
 load();
