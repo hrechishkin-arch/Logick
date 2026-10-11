@@ -34,8 +34,9 @@
     .muted { color: #777; font-size: 12px; }
     .other-date { background: #fff1b8; border-radius: 8px; }
     .date-bar { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin: 8px 0 4px; }
-    .truck { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin: 8px 0; background: #fff; }
-    .truck.head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .truck { border: 1px solid #d7cbb6; border-radius: 12px; padding: 10px; margin: 18px 0; background: #fff; box-shadow: 0 1px 0 #efe7d8; }
+    .truck.head, summary.truck.head { display: flex; justify-content: space-between; gap: 8px; align-items: center; background: #f3ecdf; border-radius: 8px; padding: 8px 10px; margin: -2px -2px 8px; font-weight: 650; }
+    summary.truck.head::-webkit-details-marker { display: none; }
     .tag { background: #ece6da; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
     .tag.bad { background: #f3d6d2; }
     .stop { display: grid; grid-template-columns: 22px 1fr 70px 120px; gap: 6px; padding: 6px 0; border-bottom: 1px dashed var(--line); align-items: start; }
