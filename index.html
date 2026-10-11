@@ -181,7 +181,7 @@ function outsideKyiv(o) {
   const s = (o.address + " " + (o.zone || "") + " " + (o.shop || "")).toLowerCase();
   if (s.includes("киев") || s.includes("київ") || s.includes("київськ")) return false;
   if (/біла церк|белая церк|вишнев|вишнёв|ірпін|ирпен|буча|бровар|бориспол|бориспіль|обухов|обухів|васильк|вишгород|вышгород|гостомел|боярк|українк|украинк|крюківщ|крюковщ/.test(s)) return false;
-  return /област|львів(?!ськ)|львов(?!ск)|одеса|одесса|одес(?!ьк|ск)|харків(?!ськ)|харьков(?!ск)|дніпро(?!в)|днепр(?!о)|вінниц|винниц|житомир|полтав|черніг|черниг|черкас|суми|сумськ|рівне|ровно|терноп|івано|ів-франк|ив-франк|луцьк|ужгород|микола|херсон|кропив|запоріж|запорож/.test(s);
+  return /област|львів(?!ськ)|львов(?!ск)|одеса|одесса|одес(?!ьк|ск)|харків(?!ськ)|харьков(?!ск)|дніпро(?!в)|днепр(?!о)|вінниц|винниц|житомир|полтав|черніг|черниг|черкас|суми|сумськ|рівне|ровно|терноп|івано|ів-франк|ив-франк|чернівц|черновц|луцьк|ужгород|микола|херсон|кропив|запоріж|запорож/.test(s);
 }
 function guessZone(text) {
   const s = (text || "").toLowerCase().replace(/ё/g, "е");
@@ -520,14 +520,16 @@ $("autoBtn").onclick = () => {
   const list = dayOrders(l, d).filter(o => o.address);
   if (!list.length) { alert("Нет заявок с адресом на эту дату."); return; }
   list.forEach(o => { o.zone = guessZone((o.address || "") + " " + (o.shop || "")) || o.zone; o.truckId = null; });
+  list.filter(outsideKyiv).forEach(o => { o.lane = "trip"; o.truckId = null; });
+  const local = list.filter(o => !outsideKyiv(o));
   const cap = Number($("defaultCap").value||1500);
   const per = Number(state.perTruck || 10);
   const kmLimit = 120;
   const depot = depotPoint();
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
-  const zones = [...new Set(list.map(o => o.zone || "Без района"))].sort((a,b) => a.localeCompare(b, "ru"));
+  const zones = [...new Set(local.map(o => o.zone || "Без района"))].sort((a,b) => a.localeCompare(b, "ru"));
   zones.forEach(zone => {
-    const left = list.filter(o => !o.truckId && (o.zone || "Без района") === zone);
+    const left = local.filter(o => !o.truckId && (o.zone || "Без района") === zone);
     if (!left.length) return;
     const groups = groupStops(left).map(g => ({ ...g, point: orderPoint(g.orders[0]) }));
     const taken = pathFromDepot(groups, depot);
