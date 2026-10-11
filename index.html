@@ -142,7 +142,7 @@ const AREA = [
   ["вишнев","Вишнёвое"],["вишнёв","Вишнёвое"],["ирпен","Ирпень"],["ірпін","Ирпень"],["буча","Буча"],
   ["бровар","Бровары"],["бориспол","Борисполь"],["бориспіль","Борисполь"],["обухов","Обухов"],["обухів","Обухов"],
   ["васильков","Васильков"],["васильк","Васильков"],["вышгород","Вышгород"],["вишгород","Вышгород"],
-  ["кольцов","Святошинский"],["кільцев","Святошинский"],["паладін","Святошинский"],["палладин","Святошинский"],["паладин","Святошинский"],["гарматн","Святошинский"],["гарматин","Святошинский"],["кустанай","Дарницкий"],["печенеж","Днепровский"],["печеніж","Днепровский"],
+  ["кольцов","Святошинский"],["кільцев","Святошинский"],["кустанай","Дарницкий"],["печенеж","Днепровский"],["печеніж","Днепровский"],
   ["науки","Голосеевский"],["кириллов","Подольский"],["кирилів","Подольский"],["чорнобиль","Святошинский"],["чернобыл","Святошинский"],["білич","Святошинский"],["билич","Святошинский"],
   ["белая церк","Белая Церковь"],["біла церк","Белая Церковь"],["белая","Белая Церковь"],["біла","Белая Церковь"],
   ["погреб","Бровары"],["княжич","Бровары"],["требух","Бровары"],["щаслив","Борисполь"],["счастлив","Борисполь"],
@@ -294,17 +294,13 @@ function parseOrders(text, onlyDate) {
   return rows;
 }
 function extractAddress(shop) {
-  const text = String(shop || "").replace(/\s+/g, " ").trim();
+  const text = String(shop || "").trim();
   if (!text) return "";
   const paren = text.match(/\(([^)]+)\)/);
-  const inner = (paren ? paren[1] : text).trim();
+  const inner = (paren ? paren[1] : text).replace(/\s+/g, " ").trim();
   if (/^\s*рц\s*$/i.test(inner)) return "";
-  const city = /київ|киев/i.test(text) ? "Київ" : "";
-  if (paren) {
-    if (city && !/київ|киев/i.test(inner)) return city + ", " + inner;
-    return inner;
-  }
-  if (/вул|ул\.|бул|пр-т|просп|пров|шосе|шоссе|наб|площа|шлях|трас|р-н|район|(?:^|[\s,])(?:с|смт|пгт|м)\.|село|селище|київ|киев|\d/i.test(text)) return text;
+  const place = /(?:^|[\s,])(?:с|смт|пгт|м)\.|село|селище|місто|город|р-н|район|вул|ул\.|бул|пр-т|просп|пров|шосе|шоссе|наб|площа|шлях|трас|погреб|щаслив|счастлив|бориспіль|бориспол|бровар|ірпін|ирпен|буча|вишнев|вишнёв|обухів|обухов|васильк|біла церк|белая церк/i;
+  if (place.test(inner) || /\d/.test(inner)) return inner;
   return "";
 }
 function parseSchedule(text, dateStr, weekBlock) {
@@ -786,28 +782,72 @@ function closeTrip(id) {
 function esc(s) { return String(s ?? "").replace(/[&<>]/g, ch => ch === "&" ? "\x26amp;" : ch === "<" ? "\x26lt;" : "\x26gt;"); }
 function orderLabel(o) { return orderKey(o.orderNo) || o.orderNo || "без номера"; }
 function partyOf(o) { return o.counterparty || o.client || ""; }
-function printSheet(html) {
-  const frame = document.createElement("iframe");
-  frame.setAttribute("aria-hidden", "true");
-  frame.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0";
-  document.body.appendChild(frame);
-  const doc = frame.contentWindow.document;
-  doc.open();
-  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>\u00a0</title><style>
-    @page { size: A4; margin: 12mm; }
-    html, body { margin: 0; color: #111; font: 11px/1.35 "Segoe UI", sans-serif; }
-    h2 { font-size: 16px; margin: 0 0 6px; }
-    h3 { font-size: 13px; margin: 10px 0 4px; }
-    p { margin: 0 0 2px; }
-    .truck-block { margin-top: 16px; padding-top: 10px; border-top: 1px solid #bbb; }
-    .truck-name { margin: 0 0 6px; }
-    .inv-head { margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid #bbb; }
-    .stop-line { margin: 10px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; break-inside: avoid; }
-    a { color: inherit; text-decoration: none; }
-    a[href]:after { content: none !important; }
-  </style></head><body>${html}</body></html>`);
-  doc.close();
-  setTimeout(() => { frame.contentWindow.focus(); frame.contentWindow.print(); setTimeout(() => frame.remove(), 1000); }, 200);
+async function printSheet(html) {
+  if (!window.PDFLib) {
+    await new Promise((ok, bad) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+      s.onload = ok;
+      s.onerror = () => bad(new Error("pdf"));
+      document.head.appendChild(s);
+    });
+  }
+  const fontBytes = await fetch("NotoSans-Regular.ttf").then(r => r.arrayBuffer());
+  const pdf = await PDFLib.PDFDocument.create();
+  const font = await pdf.embedFont(fontBytes, { subset: true });
+  const title = ((html.match(/<h2>(.*?)<\/h2>/) || ["", "Logick"])[1] || "Logick").replace(/<[^>]+>/g, "");
+  pdf.setTitle(title);
+  pdf.setAuthor("Logick");
+  pdf.setCreator("Logick");
+  pdf.setProducer("Logick");
+  const pageW = 595.28, pageH = 841.89, margin = 42;
+  let page = pdf.addPage([pageW, pageH]);
+  let y = pageH - margin;
+  const maxW = pageW - margin * 2;
+  const draw = (raw, size, gap) => {
+    const words = String(raw || "").split(/\s+/).filter(Boolean);
+    let line = "";
+    const lines = [];
+    words.forEach(w => {
+      const trial = line ? line + " " + w : w;
+      if (font.widthOfTextAtSize(trial, size) > maxW && line) { lines.push(line); line = w; }
+      else line = trial;
+    });
+    if (line) lines.push(line);
+    if (!lines.length) lines.push("");
+    lines.forEach(ln => {
+      if (y < margin + size) { page = pdf.addPage([pageW, pageH]); y = pageH - margin; }
+      if (ln) page.drawText(ln, { x: margin, y, size, font, color: PDFLib.rgb(0.1, 0.1, 0.1) });
+      y -= size + 3;
+    });
+    y -= gap;
+  };
+  const plain = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|h2|h3|div|section)>/gi, "\n")
+    .replace(/<h2>/gi, "\n## ")
+    .replace(/<h3>/gi, "\n### ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, '"');
+  plain.split("\n").map(s => s.trim()).filter(Boolean).forEach(line => {
+    if (line.startsWith("## ")) draw(line.slice(3), 16, 8);
+    else if (line.startsWith("### ")) draw(line.slice(4), 13, 6);
+    else draw(line, 11, 2);
+  });
+  const bytes = await pdf.save();
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = title.replace(/[^\w\u0400-\u04FF0-9 .-]+/gi, "") + ".pdf";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 function dayReport(date) {
   const trucks = state.trucks.filter(t => t.lane === "day" && t.date === date);
