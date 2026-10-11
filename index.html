@@ -698,7 +698,7 @@ function render() {
     const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
     const over = km > (t.kmLimit||120);
     return `<div class="truck">
-      <div class="truck head"><b>${t.name || "Машина"}</b><span class="tag">${t.lane==="trip"?"командировка":"день"} · ${groupStops(stops).length} точ. · ${stops.length} зак. · ${t.kmTotal?t.kmTotal+" км":"км не указан"} · ${docs} накл. · ${money(sum)}</span></div>
+      <details open><summary class="truck head" style="cursor:pointer;list-style:none"><b>${t.name || "Машина"}</b><span class="tag">${t.lane==="trip"?"командировка":"день"} · ${groupStops(stops).length} точ. · ${stops.length} зак. · ${t.kmTotal?t.kmTotal+" км":"км не указан"} · ${docs} накл. · ${money(sum)}</span></div>
       <div class="row zone-row">
         <input data-rename="${t.id}" value="${String(t.name||"").replaceAll('"','')}" placeholder="Название машины" />
         <input data-zone="${t.id}" value="${t.zone||""}" placeholder="Район или пункт" list="zones" />
@@ -709,13 +709,13 @@ function render() {
       </div>
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
-      ${(l==="trip" ? Object.values(stops.reduce((m,o)=>{ const c=cityOf(o); (m[c]||(m[c]={orders:[],city:c})).orders.push(o); return m; }, {})) : groupStops(stops)).map((g,i)=>{
+      ${Object.values(stops.reduce((m,o)=>{ const c=cityOf(o); (m[c]||(m[c]={orders:[],city:c})).orders.push(o); return m; }, {})).map((g,i)=>{
         const o = g.orders[0];
         const n = g.orders.length;
         const sum = g.orders.reduce((s,x)=>s+(Number(x.sum)||0),0);
-        const names = [...new Set(g.orders.map(x => x.counterparty || x.client).filter(Boolean))].join(", ");
-        const nums = g.orders.map(x => orderKey(x.orderNo) || x.orderNo).filter(Boolean).join(", ");
-        const title = l==="trip" ? (g.city || cityOf(o)) : (names || o.client); const inner = l==="trip" ? `<details><summary style="cursor:pointer">показать заявки</summary><div class="muted">${g.orders.map(x => (x.orderNo||"без номера") + " · " + (x.counterparty||x.client||"") + " · " + (x.address||"") + (x.sum ? " · " + money(x.sum) : "")).join("<br>")}</div></details>` : ""; return `<div class="stop"><b>${i+1}</b><div><b>${title}</b> · ${n} зак.<div class="muted">${l==="trip" ? "" : (o.address || "без адреса")}</div>${inner}<div class="muted">${l==="trip" ? "" : nums}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${g.orders.map(x => x.id).join(",")}">снять</button></div></div>
+        const title = g.city || cityOf(o);
+        const inner = `<details><summary style="cursor:pointer">показать заявки</summary><div class="muted">${g.orders.map(x => (x.orderNo||"без номера") + " · " + (x.counterparty||x.client||"") + " · " + (x.address||"") + (x.sum ? " · " + money(x.sum) : "")).join("<br>")}</div></details>`;
+        return `<div class="stop"><b>${i+1}</b><div><b>${title}</b> · ${n} зак.${inner}<div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${g.orders.map(x => x.id).join(",")}">снять</button></div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${n}" title="заказов" readonly />
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
       }).join("")}
@@ -729,6 +729,7 @@ function render() {
         <button data-pdf="${t.id}">Путевой лист</button>
         <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
       </div>
+      </details>
     </div>`;
   }).join("") || "<p class='muted'>Машин нет. Плюс — добавить вручную, или загрузить машины.</p>";
   $("board").insertAdjacentHTML("beforeend", `<datalist id="zones">${[...KYIV,...OBLAST].map(z=>`<option value="${z}">`).join("")}</datalist>`);
