@@ -130,13 +130,13 @@
 <script>
 const KEY = "logick-v2";
 const KYIV = ["Голосеевский","Дарницкий","Деснянский","Днепровский","Оболонский","Печерский","Подольский","Святошинский","Соломенский","Шевченковский"];
-const OBLAST = ["Вишнёвое","Ирпень","Буча","Бровары","Борисполь","Обухов","Васильков","Вышгород","Белая Церковь","Гостомель","Боярка","Фастов","Крюковщина"];
+const OBLAST = ["Вишнёвое","Ирпень","Буча","Бровары","Борисполь","Обухов","Васильков","Вышгород","Белая Церковь","Гостомель","Боярка","Фастов","Крюковщина","Петропавловская Борщаговка","Софиевская Борщаговка","Гатное"];
 const AREA = [
   ["оболон","Оболонский"],["минск","Оболонский"],["троещин","Деснянский"],["лісов","Деснянский"],["лесов","Деснянский"],
   ["дарниц","Дарницкий"],["позняк","Дарницкий"],["осжорн","Дарницкий"],["харьков","Дарницкий"],["харків","Дарницкий"],
   ["левобереж","Днепровский"],["лівобереж","Днепровский"],["русанов","Днепровский"],["березняк","Днепровский"],
   ["печер","Печерский"],["подол","Подольский"],["поділ","Подольский"],["куренев","Подольский"],["виноградар","Подольский"],
-  ["святошин","Святошинский"],["борщаг","Святошинский"],["соломен","Соломенский"],["солом","Соломенский"],["отрадн","Соломенский"],["відрад","Соломенский"],
+  ["святошин","Святошинский"],["петропавл","Петропавловская Борщаговка"],["п. борщаг","Петропавловская Борщаговка"],["п.борщаг","Петропавловская Борщаговка"],["софіїв","Софиевская Борщаговка"],["софиев","Софиевская Борщаговка"],["с. борщаг","Софиевская Борщаговка"],["гатне","Гатное"],["гатное","Гатное"],["микільськ борщаг","Святошинский"],["никольск борщаг","Святошинский"],["соломен","Соломенский"],["солом","Соломенский"],["отрадн","Соломенский"],["відрад","Соломенский"],
   ["голосеев","Голосеевский"],["голосі","Голосеевский"],["теремк","Голосеевский"],["демеев","Голосеевский"],
   ["шевченк","Шевченковский"],["крещатик","Шевченковский"],["хрещатик","Шевченковский"],
   ["вишнев","Вишнёвое"],["вишнёв","Вишнёвое"],["ирпен","Ирпень"],["ірпін","Ирпень"],["буча","Буча"],
@@ -192,7 +192,7 @@ const COORDS = {
   "Соломенский":[50.43,30.47],"Шевченковский":[50.46,30.50],"Вишнёвое":[50.39,30.37],"Ирпень":[50.52,30.25],
   "Буча":[50.55,30.22],"Бровары":[50.51,30.79],"Борисполь":[50.35,30.95],"Обухов":[50.11,30.63],
   "Васильков":[50.18,30.31],"Вышгород":[50.58,30.49],"Белая Церковь":[49.80,30.11],"Гостомель":[50.57,30.26],
-  "Боярка":[50.33,30.29],"Украинка":[50.14,30.75],"Фастов":[50.08,29.92],"Крюковщина":[50.37,30.37]
+  "Боярка":[50.33,30.29],"Украинка":[50.14,30.75],"Фастов":[50.08,29.92],"Крюковщина":[50.37,30.37],"Петропавловская Борщаговка":[50.437,30.343],"Софиевская Борщаговка":[50.411,30.369],"Гатное":[50.358,30.415]
 };
 const STREET_POINTS = [
   ["берестей", [50.456,30.367]], ["перемог", [50.456,30.367]], ["курбас", [50.429,30.383]],
@@ -332,8 +332,9 @@ function parseOrders(text, onlyDate) {
     if (!c.join("").trim()) continue;
     const date = parseShipDate(c[iDate] || "");
     const shop = c[iShop] || "";
-    const address = extractAddress(shop);
-    const zone = address ? guessZone(address + " " + shop) : guessZone(shop);
+    let address = extractAddress(shop);
+    const zone = guessZone((address || shop) + " " + shop);
+    if (!address && LOCAL.has(zone)) address = shop;
     const away = outsideKyiv({ address, zone, shop });
     const client = (c[iClient] || shop || "Точка").trim();
     rows.push({
@@ -345,13 +346,15 @@ function parseOrders(text, onlyDate) {
   return rows;
 }
 function extractAddress(shop) {
-  const text = String(shop || "").trim();
-  if (!text) return "";
+  const text = String(shop || "").replace(/\s+/g, " ").trim();
+  if (!text || /^\s*.{0,24}\(?\s*рц\s*\)?\s*$/i.test(text)) return "";
   const paren = text.match(/\(([^)]+)\)/);
-  const inner = (paren ? paren[1] : text).replace(/\s+/g, " ").trim();
-  if (/^\s*рц\s*$/i.test(inner)) return "";
-  const place = /(?:^|[\s,])(?:с|смт|пгт|м)\.|село|селище|місто|город|р-н|район|вул|ул\.|бул|пр-т|просп|пров|шосе|шоссе|наб|площа|шлях|трас|погреб|щаслив|счастлив|бориспіль|бориспол|бровар|ірпін|ирпен|буча|вишнев|вишнёв|обухів|обухов|васильк|біла церк|белая церк/i;
-  if (place.test(inner) || /\d/.test(inner)) return inner;
+  const inner = paren ? paren[1].trim() : "";
+  if (inner && !/^\s*рц\s*$/i.test(inner)) {
+    if (/київ|киев/i.test(text) && !/київ|киев/i.test(inner)) return "Київ, " + inner;
+    return inner;
+  }
+  if (/київ|киев|вул|ул\.|бул|пр-т|просп|пров|шосе|шоссе|наб|площа|шлях|трас|р-н|район|борщаг|гатне|гатное|(?:^|[\s,])(?:с|смт|пгт|м)\.|село|селище|\d/i.test(text)) return text;
   return "";
 }
 function parseSchedule(text, dateStr, weekBlock) {
@@ -514,22 +517,23 @@ $("autoBtn").onclick = () => {
   const per = Number(state.perTruck || 10);
   const kmLimit = 120;
   const depot = depotPoint();
-  const groups = groupStops(list).map(g => ({ ...g, point: orderPoint(g.orders[0]), angle: bearing(depot, orderPoint(g.orders[0])) }));
-  groups.sort((a,b) => a.angle - b.angle);
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
-  for (let i = 0; i < groups.length; ) {
-    const taken = groups.slice(i, i + per);
-    i += taken.length;
-    const ordered = pathFromDepot(taken, depot);
-    const zoneCount = {};
-    ordered.forEach(g => g.orders.forEach(o => { const z = o.zone || "Маршрут"; zoneCount[z] = (zoneCount[z] || 0) + 1; }));
-    const zone = Object.entries(zoneCount).sort((a,b) => b[1] - a[1])[0][0];
-    const same = state.trucks.filter(t => t.lane === l && t.date === d && (t.zone === zone || (t.name || "").startsWith(zone))).length;
-    const truck = { id: uid(), name: same ? zone + " " + (same + 1) : zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
-    state.trucks.push(truck);
-    let seq = 1;
-    ordered.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; }));
-  }
+  const zones = [...new Set(list.map(o => o.zone || "Без района"))].sort((a,b) => a.localeCompare(b, "ru"));
+  zones.forEach(zone => {
+    let left = list.filter(o => !o.truckId && (o.zone || "Без района") === zone);
+    let n = 1;
+    while (left.length) {
+      const groups = groupStops(left).map(g => ({ ...g, point: orderPoint(g.orders[0]) }));
+      const taken = pathFromDepot(groups, depot).slice(0, per);
+      if (!taken.length) break;
+      const truck = { id: uid(), name: left.length > per || n > 1 ? zone + " " + n : zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
+      state.trucks.push(truck);
+      let seq = 1;
+      taken.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; }));
+      n++;
+      left = list.filter(o => !o.truckId && (o.zone || "Без района") === zone);
+    }
+  });
   save();
 };
 $("addTruckBtn").onclick = () => {
