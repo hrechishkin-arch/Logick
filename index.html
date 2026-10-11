@@ -935,12 +935,12 @@ function dayReport(date) {
   const ordersN = loaded.reduce((s, x) => s + x.stops.length, 0);
   const sumAll = loaded.reduce((s, x) => s + x.stops.reduce((a, o) => a + (Number(o.sum) || 0), 0), 0);
   const kmAll = loaded.reduce((s, x) => s + (Number(x.t.kmTotal) || 0), 0);
-  const orderLine = o => `<p class="stop-line">${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${money(o.sum)}</p>`;
+  const orderLine = o => `<p class="stop-line">${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${esc(o.address || o.shop || "без адреса")} — ${money(o.sum)}</p>`;
   const blocks = loaded.map(({ t, stops }) => {
     const sum = stops.reduce((s, o) => s + (Number(o.sum) || 0), 0);
     return `<section class="truck-block"><p class="truck-name"><b>${esc(t.name)}</b><br>заказов ${stops.length} · км ${t.kmTotal || "—"} · сумма ${money(sum)}</p>${stops.map(orderLine).join("")}</section>`;
   }).join("");
-  const dupeBlock = dupes.length ? `<section class="truck-block"><p class="truck-name"><b>Дубли</b><br>снято ${dupes.length}</p>${dupes.map(o => `<p class="stop-line">${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${money(o.sum)} — продублирован и снят</p>`).join("")}</section>` : "";
+  const dupeBlock = dupes.length ? `<section class="truck-block"><p class="truck-name"><b>Дубли</b><br>снято ${dupes.length}</p>${dupes.map(o => `<p class="stop-line">${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${esc(o.address || o.shop || "без адреса")} — ${money(o.sum)} — продублирован и снят</p>`).join("")}</section>` : "";
   const fromTable = new Set((state.imported && state.imported[date]) || []);
   state.orders.filter(o => o.date === date).forEach(o => {
     const key = orderKey(o.orderNo) || String(o.orderNo || "").trim();
