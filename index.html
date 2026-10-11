@@ -839,71 +839,74 @@ function esc(s) { return String(s ?? "").replace(/[&<>]/g, ch => ch === "&" ? "\
 function orderLabel(o) { return orderKey(o.orderNo) || o.orderNo || "без номера"; }
 function partyOf(o) { return o.counterparty || o.client || ""; }
 async function printSheet(html) {
-  if (!window.PDFLib) {
-    await new Promise((ok, bad) => {
-      const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
-      s.onload = ok;
-      s.onerror = () => bad(new Error("pdf"));
-      document.head.appendChild(s);
-    });
-  }
-  const fontBytes = await fetch("NotoSans-Regular.ttf").then(r => r.arrayBuffer());
-  const pdf = await PDFLib.PDFDocument.create();
-  const font = await pdf.embedFont(fontBytes, { subset: true });
-  const title = ((html.match(/<h2>(.*?)<\/h2>/) || ["", "Logick"])[1] || "Logick").replace(/<[^>]+>/g, "");
-  pdf.setTitle(title);
-  pdf.setAuthor("Logick");
-  pdf.setCreator("Logick");
-  pdf.setProducer("Logick");
-  const pageW = 595.28, pageH = 841.89, margin = 42;
-  let page = pdf.addPage([pageW, pageH]);
-  let y = pageH - margin;
-  const maxW = pageW - margin * 2;
-  const draw = (raw, size, gap) => {
-    const words = String(raw || "").split(/\s+/).filter(Boolean);
-    let line = "";
-    const lines = [];
-    words.forEach(w => {
-      const trial = line ? line + " " + w : w;
-      if (font.widthOfTextAtSize(trial, size) > maxW && line) { lines.push(line); line = w; }
-      else line = trial;
-    });
-    if (line) lines.push(line);
-    if (!lines.length) lines.push("");
-    lines.forEach(ln => {
-      if (y < margin + size) { page = pdf.addPage([pageW, pageH]); y = pageH - margin; }
-      if (ln) page.drawText(ln, { x: margin, y, size, font, color: PDFLib.rgb(0.1, 0.1, 0.1) });
-      y -= size + 3;
-    });
-    y -= gap;
+  const fallback = () => {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "position:fixed;width:0;height:0;border:0";
+    document.body.appendChild(frame);
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>\u00a0</title><style>@page{size:A4;margin:12mm}body{margin:0;color:#111;font:12px/1.4 sans-serif}h2{font-size:18px;margin:0 0 8px}p{margin:0 0 4px}.stop-line{margin:10px 0;padding-bottom:6px;border-bottom:1px solid #ddd}</style></head><body>${html}</body></html>`);
+    doc.close();
+    setTimeout(() => { frame.contentWindow.focus(); frame.contentWindow.print(); setTimeout(() => frame.remove(), 1000); }, 200);
   };
-  const plain = html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|h2|h3|div|section)>/gi, "\n")
-    .replace(/<h2>/gi, "\n## ")
-    .replace(/<h3>/gi, "\n### ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, '"');
-  plain.split("\n").map(s => s.trim()).filter(Boolean).forEach(line => {
-    if (line.startsWith("## ")) draw(line.slice(3), 16, 8);
-    else if (line.startsWith("### ")) draw(line.slice(4), 13, 6);
-    else draw(line, 11, 2);
-  });
-  const bytes = await pdf.save();
-  const blob = new Blob([bytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = title.replace(/[^\w\u0400-\u04FF0-9 .-]+/gi, "") + ".pdf";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  try {
+    if (!window.PDFLib) {
+      await new Promise((ok, bad) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+        s.onload = ok;
+        s.onerror = () => bad(new Error("pdf-lib"));
+        document.head.appendChild(s);
+      });
+    }
+    const fontUrl = new URL("NotoSans-Regular.ttf", window.location.href).href;
+    let fontResp = await fetch(fontUrl);
+    if (!fontResp.ok) fontResp = await fetch("https://raw.githubusercontent.com/hrechishkin-arch/Logick/main/NotoSans-Regular.ttf");
+    if (!fontResp.ok) throw new Error("font");
+    const fontBytes = await fontResp.arrayBuffer();
+    const pdf = await PDFLib.PDFDocument.create();
+    const font = await pdf.embedFont(fontBytes, { subset: true });
+    const title = ((html.match(/<h2>(.*?)<\/h2>/) || ["", "Logick"])[1] || "Logick").replace(/<[^>]+>/g, "");
+    pdf.setTitle(title);
+    const pageW = 595.28, pageH = 841.89, margin = 42;
+    let page = pdf.addPage([pageW, pageH]);
+    let y = pageH - margin;
+    const maxW = pageW - margin * 2;
+    const draw = (raw, size, gap) => {
+      const words = String(raw || "").split(/\s+/).filter(Boolean);
+      let line = "";
+      const lines = [];
+      words.forEach(w => {
+        const trial = line ? line + " " + w : w;
+        if (font.widthOfTextAtSize(trial, size) > maxW && line) { lines.push(line); line = w; }
+        else line = trial;
+      });
+      if (line) lines.push(line);
+      lines.forEach(ln => {
+        if (y < margin + size) { page = pdf.addPage([pageW, pageH]); y = pageH - margin; }
+        page.drawText(ln, { x: margin, y, size, font, color: PDFLib.rgb(0.1, 0.1, 0.1) });
+        y -= size + 3;
+      });
+      y -= gap;
+    };
+    html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|h2|h3|div|section)>/gi, "\n").replace(/<h2>/gi, "\n## ").replace(/<h3>/gi, "\n### ").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, '"').split("\n").map(s => s.trim()).filter(Boolean).forEach(line => {
+      if (line.startsWith("## ")) draw(line.slice(3), 16, 8);
+      else if (line.startsWith("### ")) draw(line.slice(4), 13, 6);
+      else draw(line, 11, 2);
+    });
+    const bytes = await pdf.save();
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = title.replace(/[^\w\u0400-\u04FF0-9 .-]+/gi, "") + ".pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch (err) {
+    fallback();
+  }
 }
 function dayReport(date) {
   const trucks = state.trucks.filter(t => t.lane === "day" && t.date === date);
