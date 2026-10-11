@@ -642,6 +642,10 @@ function render() {
         <input data-docs="${o.id}" type="number" min="0" value="${n}" title="заказов" readonly />
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
       }).join("")}
+      <div class="row">
+        <select data-move="${t.id}"><option value="">перегрузить в…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
+        <button data-movego="${t.id}">Перегрузить</button>
+      </div>
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
@@ -681,6 +685,18 @@ function bind() {
   document.querySelectorAll("[data-docs]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.docs).docs = Number(el.value||0); save(); });
   document.querySelectorAll("[data-sum]").forEach(el => el.onchange = () => { state.orders.find(o=>o.id===el.dataset.sum).sum = Number(el.value||0); save(); });
   document.querySelectorAll("[data-upfree]").forEach(el => el.onclick = () => { state.orders.forEach(o => { if (o.truckId === el.dataset.upfree) { o.truckId = null; o.basket = !o.address; } }); save(); });
+  document.querySelectorAll("[data-movego]").forEach(el => el.onclick = () => {
+    const from = state.trucks.find(x => x.id === el.dataset.movego);
+    const sel = document.querySelector(`[data-move="${el.dataset.movego}"]`);
+    const to = state.trucks.find(x => x.id === (sel && sel.value));
+    if (!from || !to) { alert("Выберите машину, куда перегрузить."); return; }
+    const orders = state.orders.filter(o => o.truckId === from.id).sort((a,b) => (a.seq||0) - (b.seq||0));
+    if (!orders.length) { alert("В машине нет заказов."); return; }
+    if (!confirm("Перегрузить " + orders.length + " зак. из «" + (from.name||"Машина") + "» в «" + (to.name||"Машина") + "»?")) return;
+    const last = state.orders.filter(o => o.truckId === to.id).reduce((m,o) => Math.max(m, o.seq||0), 0);
+    orders.forEach((o,i) => { o.truckId = to.id; o.seq = last + i + 1; o.date = to.date; o.lane = to.lane === "trip" ? "trip" : "day"; });
+    save();
+  });
   document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
     const t = state.trucks.find(x => x.id === el.dataset.drop);
     if (t && t.lane === "trip" && !confirm("Очистить эту командировочную машину?")) return;
