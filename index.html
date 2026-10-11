@@ -683,7 +683,7 @@ function render() {
   $("away").innerHTML = away.length ? [...new Set(away.map(cityOf))].map(city => {
     const part = away.filter(o => cityOf(o) === city);
     const sum = part.reduce((s,o)=>s+(Number(o.sum)||0),0);
-    return `<details style="padding:6px 0;border-bottom:1px solid #e6dcc8"><summary style="cursor:pointer"><b>${city}</b> · ${part.length} зак. · ${money(sum)}</summary><div style="padding:6px 0"><select data-cityto="${city.replace(/"/g, """)}"><option value="">весь город в машину…</option>${both}</select></div>${part.map(card).join("")}</details>`;
+    return `<details style="padding:6px 0;border-bottom:1px solid #e6dcc8"><summary style="cursor:pointer"><b>${city}</b> · ${part.length} зак. · ${money(sum)}</summary><div style="padding:6px 0"><select data-cityto="${encodeURIComponent(city)}"><option value="">весь город в машину…</option>${both}</select></div>${part.map(card).join("")}</details>`;
   }).join("") : empty;
   $("basket").innerHTML = basket.length ? grouped(basket) : empty;
   $("queue").innerHTML = queued.length ? grouped(queued) : empty;
@@ -742,7 +742,7 @@ function bind() {
     save();
   });
   document.querySelectorAll("[data-cityto]").forEach(el => el.onchange = () => {
-    const city = el.dataset.cityto;
+    const city = decodeURIComponent(el.dataset.cityto || '');
     const t = state.trucks.find(x => x.id === el.value);
     if (!city || !t) return;
     const rows = state.orders.filter(o => !o.truckId && outsideKyiv(o) && cityOf(o) === city);
