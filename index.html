@@ -821,6 +821,13 @@ function mapsQuery(address, zone) {
   s = s.replace(/вул\.?\s*/gi, "вулиця ");
   s = s.replace(/ул\.?\s*/gi, "вулиця ");
   s = s.replace(/пр-т\s*|просп\.?\s*/gi, "проспект ");
+  s = s.replace(/бул\.?\s*/gi, "бульвар ");
+  s = s.replace(/пров\.?\s*/gi, "провулок ");
+  s = s.replace(/(^|[\s,])пл\.?\s*/gi, "$1площа ");
+  if (!/вулиц|проспект|бульвар|провулок|шосе|шоссе|площа|набережн/i.test(s)) {
+    s = s.replace(/,\s*([^,\d]{2,40}?)\s*,?\s*(\d)/, ", вулиця $1, $2");
+  }
+  if (/львівськ|львовск/i.test(s) && !/площа/i.test(s)) s = s.replace(/львівська|львовская/ig, "вулиця Львівська");
   const kyivDistrict = /ский$|ський$/.test(zone || "") && !/борщаг|гатн|новос|крюков|фастов|вишнев|ирпен|буча|бровар|бориспол|обухов|васильк|вишгород|церк|гостомел|боярк/i.test(zone || "");
   if (zone && !kyivDistrict && !s.toLowerCase().includes(String(zone).toLowerCase().slice(0, 6))) s = zone + ", " + s;
   const region = kyivDistrict ? "Київ, Україна" : "Київська область, Україна";
