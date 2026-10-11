@@ -105,11 +105,11 @@
     </div>
     <p class="muted" id="loadStatus">Вставьте таблицу с шапкой и нажмите «Добавить заявки».</p>
     <p class="muted" id="estimate" style="display:none"></p>
-    <h2 style="margin-top:16px">Без адреса</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px"><h2 style="margin:0">Без адреса</h2><button id="clearBasket" type="button">Очистить</button></div>
     <div class="basket" id="basket"><span style="color:#777">Пусто</span></div>
-    <h2 style="margin-top:12px">Командировка, вне области</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><h2 style="margin:0">Командировка, вне области</h2><button id="clearAway" type="button">Очистить</button></div>
     <div class="basket" id="away"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><h2 style="margin:0">Очередь дня</h2><button id="clearQueue" type="button">Очистить очередь</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><h2 style="margin:0">Очередь дня</h2><button id="clearQueue" type="button">Очистить</button></div>
     <div class="basket" id="queue"></div>
   </section>
   <section class="card">
@@ -489,14 +489,22 @@ $("addTruckBtn").onclick = () => {
   state.trucks.push({ id: uid(), name: l === "trip" ? "Командировка" : "Машина", lane: l, date: d, zone: "", cap: Number($("defaultCap").value||1500), kmLimit: Number(state.kmLimit || 120), driver: "" });
   save();
 };
-$("clearQueue").onclick = () => {
-  const d = $("date").value;
-  const queued = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && (sameDay(o.date, d) || !o.date) && o.address);
-  if (!queued.length) { alert("Очередь пуста."); return; }
-  if (!confirm("Убрать из очереди " + queued.length + " заявок на " + fmt(d) + "? Машины и другие даты не трогаем.")) return;
-  const ids = new Set(queued.map(o => o.id));
+function clearOpen(title, pick) {
+  const rows = state.orders.filter(o => !o.truckId && pick(o));
+  if (!rows.length) { alert(title + " пусто."); return; }
+  if (!confirm("Убрать " + rows.length + " заявок из раздела «" + title + "»? Машины и другие даты не трогаем.")) return;
+  const ids = new Set(rows.map(o => o.id));
   state.orders = state.orders.filter(o => !ids.has(o.id));
   save();
+}
+$("clearBasket").onclick = () => {
+  const d = $("date").value;
+  clearOpen("Без адреса", o => !outsideKyiv(o) && (sameDay(o.date, d) || !o.date) && !o.address);
+};
+$("clearAway").onclick = () => clearOpen("Командировка", o => outsideKyiv(o));
+$("clearQueue").onclick = () => {
+  const d = $("date").value;
+  clearOpen("Очередь дня", o => !outsideKyiv(o) && (sameDay(o.date, d) || !o.date) && o.address);
 };
 $("clearDay").onclick = () => {
   const d = $("date").value;
