@@ -886,16 +886,16 @@ function printSheet(html) {
   const doc = frame.contentWindow.document;
   doc.open();
   doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title><style>
-    @page { size: A4; margin: 0; }
+    @page { size: A4; margin: 8mm 10mm; }
     html, body { margin: 0; background: #fff; color: #111; }
-    body { font: 11px/1.3 "Segoe UI", Arial, sans-serif; padding: 12mm; }
+    body { font: 10px/1.25 "Segoe UI", Arial, sans-serif; }
     .sheet { box-sizing: border-box; }
-    h2 { font-size: 16px; margin: 0 0 6px; }
-    h3 { font-size: 13px; margin: 10px 0 4px; }
-    p { margin: 0 0 2px; }
-    .inv-head { margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid #bbb; }
-    .stop-line { margin: 10px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; break-inside: avoid; }
-    .truck-block { margin-top: 16px; padding-top: 10px; border-top: 1px solid #bbb; }
+    h2 { font-size: 14px; margin: 0 0 4px; }
+    h3 { font-size: 12px; margin: 6px 0 2px; }
+    p { margin: 0 0 1px; }
+    .inv-head { margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid #ccc; }
+    .stop-line { margin: 4px 0 3px; padding-bottom: 2px; border-bottom: 1px solid #e4e4e4; break-inside: avoid; }
+    .truck-block { margin-top: 8px; padding-top: 6px; border-top: 1px solid #ccc; }
   </style></head><body>${html}</body></html>`);
   doc.close();
   setTimeout(() => {
