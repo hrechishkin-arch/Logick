@@ -731,7 +731,7 @@ function render() {
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
-        <button data-pdf="${t.id}">Путевой лист</button>
+        <button data-pdf="${t.id}">Путевой лист</button>${l==="trip"?`<button data-treport="${t.id}">Отчёт</button>`:""}
         <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
       </div>
       </details>
@@ -804,6 +804,7 @@ function bind() {
     save();
   });
   document.querySelectorAll("[data-pdf]").forEach(el => el.onclick = () => pdf(el.dataset.pdf));
+  document.querySelectorAll("[data-treport]").forEach(el => el.onclick = () => tripReport(el.dataset.treport));
   document.querySelectorAll("[data-route]").forEach(el => el.onclick = () => route(el.dataset.route));
   document.querySelectorAll("[data-up]").forEach(el => el.onclick = () => moveStop(el.dataset.up, -1));
   document.querySelectorAll("[data-down]").forEach(el => el.onclick = () => moveStop(el.dataset.down, 1));
@@ -958,6 +959,24 @@ function dayReport(date) {
   const aside = state.orders.filter(o => o.date === date && !onTrucks.has(orderKey(o.orderNo) || String(o.orderNo || "").trim()));
   const asideLine = aside.length ? `<br>Командировка: ${aside.length} — ${aside.map(o => esc(orderLabel(o)) + (o.lane === "trip" || outsideKyiv(o) ? " командировка" : o.truckId ? "" : " не в машине")).join("; ")}` : "";
   printSheet(`<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p class="inv-head">Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Дублей снято: ${dupes.length}${asideLine}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`);
+}
+function tripReport(id) {
+  const t = state.trucks.find(x => x.id === id);
+  if (!t) return;
+  const stops = state.orders.filter(o => o.truckId === id).sort((a,b) => (a.seq||0) - (b.seq||0));
+  if (!stops.length) { alert("В машине нет заявок."); return; }
+  const sumAll = stops.reduce((s,o) => s + (Number(o.sum)||0), 0);
+  const groups = Object.values(stops.reduce((m,o) => {
+    const c = cityOf(o);
+    (m[c] || (m[c] = { city: c, orders: [] })).orders.push(o);
+    return m;
+  }, {}));
+  const line = o => `<p class="stop-line">${esc(orderLabel(o))} — ${esc(partyOf(o) || o.counterparty || o.client || "без контрагента")} — ${esc(o.address || o.shop || "без адреса")} — ${money(o.sum)}</p>`;
+  const blocks = groups.map(g => {
+    const sum = g.orders.reduce((s,o) => s + (Number(o.sum)||0), 0);
+    return `<section class="truck-block"><p class="truck-name"><b>${esc(g.city)}</b><br>заказов ${g.orders.length} · сумма ${money(sum)}</p>${g.orders.map(line).join("")}</section>`;
+  }).join("");
+  printSheet(`<section class="sheet"><h2>Отчёт командировки ${esc(t.name || "")}</h2><p class="inv-head">Дата: ${fmt(t.date)}<br>Машина: ${esc(t.name || "")}<br>Направление: ${esc(t.zone || "—")}<br>Заказов: ${stops.length}<br>Городов: ${groups.length}<br>Общий километраж: ${t.kmTotal || "—"}<br>Сумма: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}</section>`);
 }
 function pdf(id, closed) {
   const t = state.trucks.find(x => x.id === id);
