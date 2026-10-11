@@ -787,6 +787,7 @@ function bind() {
     if (!confirm("Перегрузить " + orders.length + " зак. из «" + (from.name||"Машина") + "» в «" + (to.name||"Машина") + "»?")) return;
     const last = state.orders.filter(o => o.truckId === to.id).reduce((m,o) => Math.max(m, o.seq||0), 0);
     orders.forEach((o,i) => { o.truckId = to.id; o.seq = last + i + 1; o.date = to.date; o.lane = to.lane === "trip" ? "trip" : "day"; });
+    if (!state.orders.some(o => o.truckId === from.id)) state.trucks = state.trucks.filter(x => x.id !== from.id);
     save();
   });
   document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
