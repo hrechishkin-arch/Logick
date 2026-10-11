@@ -683,7 +683,7 @@ function render() {
   $("away").innerHTML = away.length ? [...new Set(away.map(cityOf))].map(city => {
     const part = away.filter(o => cityOf(o) === city);
     const sum = part.reduce((s,o)=>s+(Number(o.sum)||0),0);
-    return `<details style="padding:6px 0;border-bottom:1px solid #e6dcc8"><summary style="cursor:pointer"><b>${city}</b> · ${part.length} зак. · ${money(sum)}</summary>${part.map(card).join("")}</details>`;
+    return `<details style="padding:6px 0;border-bottom:1px solid #e6dcc8"><summary style="cursor:pointer"><b>${city}</b> · ${part.length} зак. · ${money(sum)}</summary><div style="padding:6px 0"><select data-cityto="${city.replace(/"/g, """)}"><option value="">весь город в машину…</option>${both}</select></div>${part.map(card).join("")}</details>`;
   }).join("") : empty;
   $("basket").innerHTML = basket.length ? grouped(basket) : empty;
   $("queue").innerHTML = queued.length ? grouped(queued) : empty;
@@ -739,6 +739,16 @@ function bind() {
   document.querySelectorAll("[data-opendate]").forEach(el => el.onclick = () => {
     $("date").value = el.dataset.opendate;
     state.date = el.dataset.opendate;
+    save();
+  });
+  document.querySelectorAll("[data-cityto]").forEach(el => el.onchange = () => {
+    const city = el.dataset.cityto;
+    const t = state.trucks.find(x => x.id === el.value);
+    if (!city || !t) return;
+    const rows = state.orders.filter(o => !o.truckId && outsideKyiv(o) && cityOf(o) === city);
+    if (!rows.length) return;
+    let seq = state.orders.filter(x => x.truckId === t.id).reduce((m, x) => Math.max(m, Number(x.seq) || 0), 0);
+    rows.forEach(o => { o.truckId = t.id; o.seq = ++seq; o.basket = false; if (t.date && t.date !== "trip") o.date = t.date; o.lane = t.lane || "trip"; });
     save();
   });
   document.querySelectorAll("[data-to]").forEach(el => el.onchange = () => {
