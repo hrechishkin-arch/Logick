@@ -425,6 +425,12 @@ function addrKey(o) {
   s = s.replace(/[^a-zа-яіїє0-9]+/gi, " ");
   return s.replace(/\s+/g, " ").trim();
 }
+function cityOf(o) {
+  const raw = String(o.address || o.shop || o.zone || "");
+  const cut = raw.split(/вул|ул\.|просп|пр-т|бул|пров|шосе|шоссе|пл\./i)[0];
+  const city = cut.replace(/^(м\.|місто|с\.|село|смт)\s*/i, "").split(",")[0].replace(/\s+/g, " ").trim();
+  return city || "Без города";
+}
 function groupStops(stops) {
   const groups = [];
   const index = new Map();
@@ -674,7 +680,11 @@ function render() {
   };
   $("estimate").textContent = "";
   const empty = "<span style=\"color:#777\">Пусто</span>";
-  $("away").innerHTML = away.length ? grouped(away) : empty;
+  $("away").innerHTML = away.length ? [...new Set(away.map(cityOf))].map(city => {
+    const part = away.filter(o => cityOf(o) === city);
+    const sum = part.reduce((s,o)=>s+(Number(o.sum)||0),0);
+    return `<details style="padding:6px 0;border-bottom:1px solid #e6dcc8"><summary style="cursor:pointer"><b>${city}</b> · ${part.length} зак. · ${money(sum)}</summary>${part.map(card).join("")}</details>`;
+  }).join("") : empty;
   $("basket").innerHTML = basket.length ? grouped(basket) : empty;
   $("queue").innerHTML = queued.length ? grouped(queued) : empty;
   bind();
@@ -699,13 +709,13 @@ function render() {
       </div>
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
-      ${groupStops(stops).map((g,i)=>{
+      ${(l==="trip" ? Object.values(stops.reduce((m,o)=>{ const c=cityOf(o); (m[c]||(m[c]={orders:[],city:c})).orders.push(o); return m; }, {})) : groupStops(stops)).map((g,i)=>{
         const o = g.orders[0];
         const n = g.orders.length;
         const sum = g.orders.reduce((s,x)=>s+(Number(x.sum)||0),0);
         const names = [...new Set(g.orders.map(x => x.counterparty || x.client).filter(Boolean))].join(", ");
         const nums = g.orders.map(x => orderKey(x.orderNo) || x.orderNo).filter(Boolean).join(", ");
-        return `<div class="stop"><b>${i+1}</b><div><b>${names || o.client}</b> · ${n} зак.<div class="muted">${o.address || "без адреса"}</div><div class="muted">${nums}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${o.id}">снять</button></div></div>
+        const title = l==="trip" ? (g.city || cityOf(o)) : (names || o.client); const inner = l==="trip" ? `<details><summary style="cursor:pointer">${g.orders.map(x => (x.orderNo||"без номера") + " · " + (x.address||"")).join("<br>")}</summary></details>` : ""; return `<div class="stop"><b>${i+1}</b><div><b>${title}</b> · ${n} зак.<div class="muted">${l==="trip" ? "" : (o.address || "без адреса")}</div>${inner}<div class="muted">${l==="trip" ? "" : nums}</div><div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${o.id}">снять</button></div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${n}" title="заказов" readonly />
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
       }).join("")}
