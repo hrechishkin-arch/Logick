@@ -185,16 +185,62 @@ function guessZone(text) {
   const city = (text || "").split(",")[0].trim();
   return city || "Без района";
 }
-const DEPOT = { lat: 50.368, lng: 30.452 };
+const DEPOT = { lat: 50.3945, lng: 30.3215 };
 const COORDS = {
   "Голосеевский":[50.40,30.52],"Дарницкий":[50.41,30.65],"Деснянский":[50.53,30.61],"Днепровский":[50.45,30.60],
   "Оболонский":[50.51,30.50],"Печерский":[50.42,30.55],"Подольский":[50.47,30.51],"Святошинский":[50.46,30.36],
   "Соломенский":[50.43,30.47],"Шевченковский":[50.46,30.50],"Вишнёвое":[50.39,30.37],"Ирпень":[50.52,30.25],
   "Буча":[50.55,30.22],"Бровары":[50.51,30.79],"Борисполь":[50.35,30.95],"Обухов":[50.11,30.63],
   "Васильков":[50.18,30.31],"Вышгород":[50.58,30.49],"Белая Церковь":[49.80,30.11],"Гостомель":[50.57,30.26],
-  "Боярка":[50.33,30.29],"Украинка":[50.14,30.75]
+  "Боярка":[50.33,30.29],"Украинка":[50.14,30.75],"Фастов":[50.08,29.92],"Крюковщина":[50.37,30.37]
 };
+const STREET_POINTS = [
+  ["берестей", [50.456,30.367]], ["перемог", [50.456,30.367]], ["курбас", [50.429,30.383]],
+  ["кішки", [50.385,30.455]], ["кишки", [50.385,30.455]], ["львівськ", [50.466,30.482]], ["львовск", [50.466,30.482]],
+  ["біляшів", [50.438,30.362]], ["биляшив", [50.438,30.362]], ["ушинськ", [50.430,30.448]], ["ушинск", [50.430,30.448]],
+  ["паладін", [50.457,30.355]], ["палладин", [50.457,30.355]], ["кільцев", [50.452,30.365]], ["кольцов", [50.452,30.365]],
+  ["гарматн", [50.458,30.405]], ["метролог", [50.455,30.360]], ["крюківщ", [50.370,30.368]], ["крюковщ", [50.370,30.368]],
+  ["погреб", [50.548,30.632]], ["щаслив", [50.372,30.815]], ["счастлив", [50.372,30.815]]
+];
 function pointOf(zone) { const c = COORDS[zone]; return c ? { lat:c[0], lng:c[1] } : null; }
+function depotPoint() {
+  const s = ($("depot").value || "").toLowerCase();
+  if (/святопетр|петропавлів|петропавлов/.test(s)) return { lat: 50.3945, lng: 30.3215 };
+  if (/столичн/.test(s)) return { lat: 50.368, lng: 30.452 };
+  return DEPOT;
+}
+function orderPoint(o) {
+  const s = ((o.address || "") + " " + (o.shop || "")).toLowerCase();
+  const hit = STREET_POINTS.find(([k]) => s.includes(k));
+  if (hit) return { lat: hit[1][0], lng: hit[1][1] };
+  return pointOf(o.zone) || { lat: 50.45, lng: 30.52 };
+}
+function kmBetween(a, b) {
+  const R = 6371, d1 = (b.lat-a.lat)*Math.PI/180, d2 = (b.lng-a.lng)*Math.PI/180;
+  const x = Math.sin(d1/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(d2/2)**2;
+  return 2*R*Math.asin(Math.min(1, Math.sqrt(x)));
+}
+function bearing(from, to) {
+  const y = Math.sin((to.lng-from.lng)*Math.PI/180) * Math.cos(to.lat*Math.PI/180);
+  const x = Math.cos(from.lat*Math.PI/180)*Math.sin(to.lat*Math.PI/180) - Math.sin(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.cos((to.lng-from.lng)*Math.PI/180);
+  return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
+}
+function pathFromDepot(groups, depot) {
+  const left = groups.slice();
+  const out = [];
+  let here = depot;
+  while (left.length) {
+    let best = 0, bestKm = Infinity;
+    left.forEach((g, i) => {
+      const km = kmBetween(here, g.point);
+      if (km < bestKm) { bestKm = km; best = i; }
+    });
+    const [next] = left.splice(best, 1);
+    out.push(next);
+    here = next.point;
+  }
+  return out;
+}
 function hav(a,b) {
   const R=6371, d1=(b.lat-a.lat)*Math.PI/180, d2=(b.lng-a.lng)*Math.PI/180;
   const s=Math.sin(d1/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(d2/2)**2;
@@ -467,26 +513,23 @@ $("autoBtn").onclick = () => {
   const cap = Number($("defaultCap").value||1500);
   const per = Number(state.perTruck || 10);
   const kmLimit = 120;
-  const docsOf = o => Number(o.docs) || 1;
-  const open = list.slice();
+  const depot = depotPoint();
+  const groups = groupStops(list).map(g => ({ ...g, point: orderPoint(g.orders[0]), angle: bearing(depot, orderPoint(g.orders[0])) }));
+  groups.sort((a,b) => a.angle - b.angle);
   state.trucks = state.trucks.filter(t => !(t.lane === l && (l === "trip" || t.date === d)));
-  const zones = [...new Set(open.map(o => o.zone || "Без района"))].sort((a,b) => a.localeCompare(b, "ru"));
-  zones.forEach(zone => {
-    let left = open.filter(o => !o.truckId && (o.zone || "Без района") === zone);
-    let n = 1;
-    while (left.length) {
-      const truck = { id: uid(), name: left.length > per || n > 1 ? zone + " " + n : zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
-      state.trucks.push(truck);
-      const groups = groupStops(left);
-      const taken = [];
-      groups.forEach(g => { if (taken.length >= per) return; taken.push(g); });
-      if (!taken.length && groups.length) taken.push(groups[0]);
-      let seq = 1;
-      taken.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; }));
-      n++;
-      left = open.filter(o => !o.truckId && (o.zone || "Без района") === zone);
-    }
-  });
+  for (let i = 0; i < groups.length; ) {
+    const taken = groups.slice(i, i + per);
+    i += taken.length;
+    const ordered = pathFromDepot(taken, depot);
+    const zoneCount = {};
+    ordered.forEach(g => g.orders.forEach(o => { const z = o.zone || "Маршрут"; zoneCount[z] = (zoneCount[z] || 0) + 1; }));
+    const zone = Object.entries(zoneCount).sort((a,b) => b[1] - a[1])[0][0];
+    const same = state.trucks.filter(t => t.lane === l && t.date === d && (t.zone === zone || (t.name || "").startsWith(zone))).length;
+    const truck = { id: uid(), name: same ? zone + " " + (same + 1) : zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
+    state.trucks.push(truck);
+    let seq = 1;
+    ordered.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; }));
+  }
   save();
 };
 $("addTruckBtn").onclick = () => {
