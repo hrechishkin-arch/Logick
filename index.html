@@ -1122,8 +1122,6 @@ setTimeout(() => {
   play.onclick = () => { if (audio.paused) audio.play(); else audio.pause(); draw(); };
   mute.onclick = () => { audio.muted = !audio.muted; mute.textContent = audio.muted ? "тихо" : "звук"; };
   audio.onplay = draw; audio.onpause = draw;
-  audio.play().catch(() => {});
-  document.addEventListener("pointerdown", () => { if (audio.paused) audio.play().then(draw).catch(() => {}); }, { once: true });
 })();
 </script>
 </script>
