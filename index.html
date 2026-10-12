@@ -614,8 +614,12 @@ $("autoBtn").onclick = () => {
 $("addTruckBtn").onclick = () => {
   const l = state.tab === "month" ? "day" : lane();
   const d = l === "trip" ? ($("date").value || new Date().toISOString().slice(0,10)) : activeDate();
-  state.trucks.push({ id: uid(), name: l === "trip" ? "Командировка" : "Машина", lane: l, date: d, zone: "", cap: Number($("defaultCap").value||1500), kmLimit: Number(state.kmLimit || 120), driver: "" });
+  const id = uid();
+  state.trucks.push({ id, name: l === "trip" ? "Командировка" : "Машина", lane: l, date: d, zone: "", cap: Number($("defaultCap").value||1500), kmLimit: Number(state.kmLimit || 120), driver: "" });
+  if (l === "trip") state.focusTruck = id;
   save();
+  const card = document.getElementById("truck-" + id);
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 function clearOpen(title, pick) {
   const rows = state.orders.filter(o => !o.truckId && pick(o));
@@ -683,7 +687,7 @@ function openTrip(id) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(t.date)) { state.date = t.date; $("date").value = t.date; }
   document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x.dataset.tab === "trip"));
   save();
-  const card = document.getElementById("board");
+  const card = document.getElementById("truck-" + id);
   if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function rememberDate(o) { if (o && !o.shipDate && o.date) o.shipDate = o.date; }
@@ -762,14 +766,14 @@ function render() {
   bind();
   if (state.tab === "month") return;
   let trucks = state.showDate ? state.trucks.filter(t => t.date === d) : trucksOf();
-  if (state.tab === "trip" && state.focusTruck) trucks = state.trucks.filter(t => t.id === state.focusTruck);
+  
   $("board").innerHTML = trucks.map(t => {
     const stops = state.orders.filter(o => o.truckId === t.id).sort((a,b) => (a.seq||0) - (b.seq||0));
     const km = kmOf(stops.length);
     const sum = stops.reduce((s,o)=>s+(Number(o.sum)||0),0);
     const docs = stops.reduce((s,o)=>s+(Number(o.docs)||0),0);
     const over = km > (t.kmLimit||120);
-    return `<div class="truck">
+    return `<div class="truck" id="truck-${t.id}">
       <details open><summary class="truck head" style="cursor:pointer;list-style:none"><b>${t.name || "Машина"}</b><span class="tag">${t.lane==="trip"?"командировка":"день"} · ${groupStops(stops).length} точ. · ${stops.length} зак. · ${t.kmTotal?t.kmTotal+" км":"км не указан"} · ${docs} накл. · ${money(sum)}</span></div>
       <div class="row zone-row">
         <input data-rename="${t.id}" value="${String(t.name||"").replaceAll('"','')}" placeholder="Название машины" />
