@@ -800,7 +800,7 @@ function render() {
         <button data-upfree="${t.id}">снять все точки</button>
         <button data-route="${t.id}">Построить маршрут</button>
         <button data-pdf="${t.id}">Путевой лист</button>${l==="trip"?`<button data-treport="${t.id}">Отчёт</button>`:""}
-        <button class="danger" data-drop="${t.id}">${l==="trip"?"очистить эту машину":"удалить машину"}</button>
+        <button class="danger" data-drop="${t.id}">"удалить машину"</button>
       </div>
       </details>
     </div>`;
@@ -881,7 +881,7 @@ function bind() {
   });
   document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
     const t = state.trucks.find(x => x.id === el.dataset.drop);
-    if (t && t.lane === "trip" && !confirm("Очистить эту командировочную машину?")) return;
+    if (!confirm("Удалить машину?")) return;
     state.orders.forEach(o => { if (o.truckId === el.dataset.drop) { o.truckId = null; o.basket = !o.address; } });
     state.trucks = state.trucks.filter(x => x.id !== el.dataset.drop);
     save();
