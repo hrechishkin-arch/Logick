@@ -497,6 +497,12 @@ function cityOf(o) {
   const good = parts.map(clean).filter(s => s && !/р-н|район|область|обл\./i.test(s) && !/^(київ|киев)$/i.test(s));
   return good[0] || "Без города";
 }
+const TRIP_CITIES = [["черкас","Черкассы"],["коростен","Коростень"],["житомир","Житомир"],["харків","Харьков"],["харьков","Харьков"],["умань","Умань"],["вінниц","Винница"],["винниц","Винница"],["львів","Львов"],["львов","Львов"],["одес","Одесса"],["дніпр","Днепр"],["днепр","Днепр"],["полтав","Полтава"],["черніг","Чернигов"],["черниг","Чернигов"],["сум","Сумы"],["рівн","Ровно"],["ровно","Ровно"],["терноп","Тернополь"],["івано","Ивано-Франковск"],["ив-франк","Ивано-Франковск"],["чернів","Черновцы"],["чернов","Черновцы"],["луцьк","Луцк"],["ужгород","Ужгород"],["микола","Николаев"],["херсон","Херсон"],["кропив","Кропивницкий"],["запорі","Запорожье"],["запорож","Запорожье"],["бердич","Бердичев"],["хмельниц","Хмельницкий"],["кременчу","Кременчуг"],["ніжин","Нежин"],["нежин","Нежин"],["прилук","Прилуки"],["конотоп","Конотоп"]];
+function tripCity(o) {
+  const s = ((o.address || "") + " " + (o.shop || "") + " " + (o.zone || "")).toLowerCase();
+  for (const [k,v] of TRIP_CITIES) if (s.includes(k)) return v;
+  return cityOf(o);
+}
 function groupStops(stops) {
   const groups = [];
   const index = new Map();
@@ -744,8 +750,8 @@ function render() {
   };
   $("estimate").textContent = "";
   const empty = "<span style=\"color:#777\">Пусто</span>";
-  $("away").innerHTML = away.length ? [...new Set(away.map(cityOf))].map(city => {
-    const part = away.filter(o => cityOf(o) === city);
+  $("away").innerHTML = away.length ? [...new Set(away.map(tripCity))].map(city => {
+    const part = away.filter(o => tripCity(o) === city);
     const sum = part.reduce((s,o)=>s+(Number(o.sum)||0),0);
     return `<details style="padding:6px 0;border-bottom:1px solid #e6dcc8"><summary style="cursor:pointer"><b>${city}</b> · ${part.length} зак. · ${money(sum)}</summary><div style="padding:6px 0"><select data-cityto="${encodeURIComponent(city)}"><option value="">весь город в машину…</option>${both}</select></div>${part.map(card).join("")}</details>`;
   }).join("") : empty;
