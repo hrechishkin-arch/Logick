@@ -711,7 +711,7 @@ function render() {
         const n = g.orders.length;
         const sum = g.orders.reduce((s,x)=>s+(Number(x.sum)||0),0);
         const title = g.city || cityOf(o);
-        const inner = `<details><summary style="cursor:pointer">показать заявки</summary><div class="muted">${g.orders.map(x => (x.orderNo||"без номера") + " · " + (x.counterparty||x.client||"") + " · " + (x.address||"") + (x.sum ? " · " + money(x.sum) : "")).join("<br>")}</div></details>`;
+        const inner = `<details><summary style="cursor:pointer">показать заявки</summary><div class="muted">${g.orders.map(x => (x.orderNo||"без номера") + " · " + (x.counterparty||x.client||"") + " · " + (x.address||"") + (x.sum ? " · " + money(x.sum) : "") + ` <button data-one="${x.id}" type="button">снять эту</button>`).join("<br>")}</div></details>`;
         return `<div class="stop"><b>${i+1}</b><div><b>${title}</b> · ${n} зак.${inner}<div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${g.orders.map(x => x.id).join(",")}">снять</button></div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${n}" title="заказов" readonly />
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
@@ -806,6 +806,15 @@ function bind() {
     state.orders.forEach(x => {
       if (ids.includes(x.id)) { x.truckId = null; x.basket = !x.address; }
     });
+    save();
+  });
+  document.querySelectorAll("[data-one]").forEach(el => el.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const o = state.orders.find(x => x.id === el.dataset.one);
+    if (!o) return;
+    o.truckId = null;
+    o.basket = !o.address;
     save();
   });
   document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => {
