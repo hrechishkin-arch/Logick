@@ -753,7 +753,8 @@ function render() {
   $("away").innerHTML = away.length ? [...new Set(away.map(tripCity))].map(city => {
     const part = away.filter(o => tripCity(o) === city);
     const sum = part.reduce((s,o)=>s+(Number(o.sum)||0),0);
-    return `<details style="padding:6px 0;border-bottom:1px solid #e6dcc8"><summary style="cursor:pointer"><b>${city}</b> · ${part.length} зак. · ${money(sum)}</summary><div style="padding:6px 0"><select data-cityto="${encodeURIComponent(city)}"><option value="">весь город в машину…</option>${both}</select></div>${part.map(card).join("")}</details>`;
+    const ids = part.map(o => o.id).join(",");
+    return `<div class="pack"><div class="pack-head"><details><summary><b>${esc(city)}</b> · ${part.length} зак. · ${money(sum)}</summary>${part.map(card).join("")}</details><select data-pack="${ids}"><option value="">пакет в машину…</option>${both}</select></div></div>`;
   }).join("") : empty;
   $("basket").innerHTML = basket.length ? grouped(basket) : empty;
   $("queue").innerHTML = queued.length ? grouped(queued) : empty;
