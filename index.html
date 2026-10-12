@@ -457,22 +457,12 @@ function orderKey(s) {
 $("loadPack").onclick = () => {
   const day = $("date").value;
   const raw = $("pack").value;
-  const orders = parseOrders(raw, day);
-  let rows = orders;
+  let rows = parseOrders(raw, "");
   if (!rows || !rows.length) {
-    const any = parseOrders(raw, "");
-    if (any && any.length) {
-      const next = any.map(r => r.date).find(Boolean) || day;
-      $("date").value = next;
-      state.date = next;
-      rows = any.filter(r => !r.date || r.date === next || outsideKyiv(r));
-    }
-  }
-  if (orders === null && (!rows || !rows.length)) {
     const parsed = parseSchedule(raw, day, 0);
-    rows = parsed.rows.map(r => ({ ...r, date: day }));
+    rows = (parsed.rows || []).map(r => ({ ...r, date: r.date || day }));
   }
-  if (!rows || !rows.length) { $("loadStatus").textContent = "На эту дату не найдено заявок. Вставьте таблицу вместе с шапкой."; return; }
+  if (!rows || !rows.length) { $("loadStatus").textContent = "Заявок не найдено. Вставьте таблицу вместе с шапкой."; return; }
   const destLane = "day";
   let added = 0, skipped = 0, duped = 0;
   const useDate = $("date").value || day;
@@ -521,8 +511,10 @@ $("loadPack").onclick = () => {
   state.date = useDate;
   $("pack").value = "";
   save();
-  const dayN = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && o.address && (o.date === useDate || !o.date)).length;
-  $("loadStatus").textContent = fmt(useDate) + ": в очереди дня " + dayN + ". Добавлено " + added + ", обновлено " + skipped + (duped ? ", дублей снято " + duped : "") + ".";
+  const openNow = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && o.address);
+  const dayN = openNow.filter(o => !o.date || sameDay(o.date, useDate)).length;
+  const otherN = openNow.length - dayN;
+  $("loadStatus").textContent = "В очереди " + openNow.length + ": на " + fmt(useDate) + " — " + dayN + ", другая дата — " + otherN + ". Добавлено " + added + ", обновлено " + skipped + (duped ? ", дублей снято " + duped : "") + ".";
 };
 $("autoBtn").onclick = () => {
   const l = lane();
@@ -666,7 +658,7 @@ function render() {
   const dLoad = $("date").value;
   const open = state.orders.filter(o => !o.truckId);
   const away = open.filter(o => outsideKyiv(o));
-  const queued = open.filter(o => !outsideKyiv(o) && o.address).sort((a,b) => String(a.date||"").localeCompare(String(b.date||"")));
+  const queued = open.filter(o => !outsideKyiv(o) && o.address).sort((a,b) => (sameDay(a.date, dLoad) === sameDay(b.date, dLoad) ? String(a.date||"").localeCompare(String(b.date||"")) : sameDay(a.date, dLoad) ? 1 : -1));
   const basket = open.filter(o => !outsideKyiv(o) && !o.address).sort((a,b) => String(a.date||"").localeCompare(String(b.date||"")));
   const allTrucks = state.trucks.filter(t => t.lane === "day" || t.lane === "trip").sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.name||"").localeCompare(String(b.name||""), "ru"));
   const both = allTrucks.map(t => `<option value="${t.id}">${t.lane==="trip"?"командировка":"день"} ${fmt(t.date)} · ${t.name||"Машина"}</option>`).join("");
