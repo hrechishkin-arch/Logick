@@ -189,9 +189,9 @@ const FAR = /умань|коростен|бердич|камян|хмельни�
 function outsideKyiv(o) {
   if (!o) return false;
   const s = ((o.address || "") + " " + (o.zone || "") + " " + (o.shop || "") + " " + (o.note || "") + " " + cityOf(o)).toLowerCase();
-  if (FAR.test(s)) return true;
   if (/біла церк|белая церк|білоцерк|белоцерк|вишнев|вишнёв|ірпін|ирпен|буча|бровар|бориспол|бориспіль|обухов|обухів|васильк|вишгород|вышгород|гостомел|боярк|українк|украинк|крюківщ|крюковщ|фастів|фастов/.test(s)) return false;
   if (!o.address) return false;
+  if (FAR.test(s)) return true;
   if (LOCAL.has(o.zone)) return false;
   if (s.includes("киев") || s.includes("київ") || s.includes("київськ")) return false;
   return /област|львів(?!ськ)|львов(?!ск)|одеса|одесса|одес(?!ьк|ск)|харків(?!ськ)|харьков(?!ск)|дніпро(?!в)|днепр(?!о)|вінниц|винниц|житомир|полтав|черніг|черниг|черкас|суми|сумськ|рівне|ровно|терноп|івано|ів-франк|ив-франк|чернівц|черновц|луцьк|ужгород|микола|херсон|кропив|запоріж|запорож/.test(s);
@@ -986,7 +986,32 @@ function printSheet(html) {
     .inv-head { margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid #ccc; }
     .stop-line { margin: 4px 0 3px; padding-bottom: 2px; border-bottom: 1px solid #e4e4e4; break-inside: avoid; }
     .truck-block { margin-top: 8px; padding-top: 6px; border-top: 1px solid #ccc; }
-  </style></head><body>${html}</body></html>`);
+  </style></head><body>${html}<div id="logickPlayer" style="position:fixed;right:12px;bottom:12px;z-index:50;display:flex;gap:8px;align-items:center;background:#fffdf8;border:1px solid #e6dcc8;border-radius:999px;padding:6px 10px;box-shadow:0 6px 18px rgba(0,0,0,.08)">
+  <button id="logickPlay" type="button" style="width:28px;height:28px;border:0;border-radius:50%;background:#111;color:#fff;cursor:pointer">▶</button>
+  <span style="font-size:12px">DJKE · The song we all know</span>
+  <button id="logickMute" type="button" style="border:0;background:transparent;cursor:pointer">звук</button>
+</div>
+<iframe id="logickYt" style="position:fixed;width:0;height:0;border:0;opacity:0" allow="autoplay" src="https://www.youtube.com/embed/WEI72q7l-9U?autoplay=1&loop=1&playlist=WEI72q7l-9U&controls=0&modestbranding=1"></iframe>
+<script>
+(function(){
+  const play = document.getElementById("logickPlay");
+  const mute = document.getElementById("logickMute");
+  const frame = document.getElementById("logickYt");
+  let on = true;
+  function src(auto){ return "https://www.youtube.com/embed/WEI72q7l-9U?autoplay="+(auto?1:0)+"&loop=1&playlist=WEI72q7l-9U&controls=0&modestbranding=1"; }
+  play.onclick = () => {
+    on = !on;
+    frame.src = src(on);
+    play.textContent = on ? "❚❚" : "▶";
+  };
+  mute.onclick = () => { frame.src = src(false); on = false; play.textContent = "▶"; };
+  document.addEventListener("pointerdown", () => {
+    if (!on) return;
+    if (!frame.src.includes("autoplay=1")) frame.src = src(true);
+  }, { once: true });
+})();
+</script>
+</body></html>`);
   doc.close();
   setTimeout(() => {
     frame.contentWindow.focus();
