@@ -817,7 +817,7 @@ function bind() {
     const city = decodeURIComponent(el.dataset.cityto || '');
     const t = state.trucks.find(x => x.id === el.value);
     if (!city || !t) return;
-    const rows = state.orders.filter(o => !o.truckId && outsideKyiv(o) && cityOf(o) === city);
+    const rows = state.orders.filter(o => !o.truckId && outsideKyiv(o) && tripCity(o) === city);
     if (!rows.length) return;
     let seq = state.orders.filter(x => x.truckId === t.id).reduce((m, x) => Math.max(m, Number(x.seq) || 0), 0);
     rows.forEach(o => { o.truckId = t.id; o.seq = ++seq; o.basket = false; rememberDate(o); if (t.date && t.date !== "trip") o.date = t.date; o.lane = t.lane || "trip"; });
