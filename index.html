@@ -39,6 +39,9 @@
     summary.truck.head::-webkit-details-marker { display: none; }
     .tag { background: #ece6da; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
     .tag.bad { background: #f3d6d2; }
+    .one-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+    .one-row span { min-width: 0; }
+    button.mini { font-size: 11px; line-height: 1; padding: 3px 7px; white-space: nowrap; }
     .stop { display: grid; grid-template-columns: 22px 1fr 70px 120px; gap: 6px; padding: 6px 0; border-bottom: 1px dashed var(--line); align-items: start; }
     .basket { background: #f7f1e4; border-radius: 10px; padding: 8px 10px; margin-top: 8px; min-height: 34px; }
     .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: 100%; }
@@ -130,6 +133,7 @@
 <div id="printArea" class="hide"></div>
 <script>
 const KEY = "logick-v2";
+let keepOpen = [];
 const KYIV = ["Голосеевский","Дарницкий","Деснянский","Днепровский","Оболонский","Печерский","Подольский","Святошинский","Соломенский","Шевченковский"];
 const OBLAST = ["Вишнёвое","Ирпень","Буча","Бровары","Борисполь","Обухов","Васильков","Вышгород","Белая Церковь","Гостомель","Боярка","Фастов","Крюковщина","Петропавловская Борщаговка","Софиевская Борщаговка","Гатное","Новоселки"];
 const AREA = [
@@ -703,7 +707,8 @@ function render() {
         const n = g.orders.length;
         const sum = g.orders.reduce((s,x)=>s+(Number(x.sum)||0),0);
         const title = g.city || cityOf(o);
-        const inner = `<details><summary style="cursor:pointer">показать заявки</summary><div class="muted">${g.orders.map(x => (x.orderNo||"без номера") + " · " + (x.counterparty||x.client||"") + " · " + (x.address||"") + (x.sum ? " · " + money(x.sum) : "") + ` <button data-one="${x.id}" type="button">снять эту</button>`).join("<br>")}</div></details>`;
+        const keep = t.id + "|" + title;
+        const inner = `<details data-keep="${keep}" ${keepOpen.includes(keep) ? "open" : ""}><summary style="cursor:pointer">показать заявки</summary><div class="muted">${g.orders.map(x => `<div class="one-row"><span>${x.orderNo||"без номера"} · ${x.counterparty||x.client||""} · ${x.address||""}${x.sum ? " · " + money(x.sum) : ""}</span><button class="mini" data-one="${x.id}" type="button">снять</button></div>`).join("")}</div></details>`;
         return `<div class="stop"><b>${i+1}</b><div><b>${title}</b> · ${n} зак.${inner}<div class="noprint"><button data-up="${o.id}">↑</button> <button data-down="${o.id}">↓</button> <button data-basket="${g.orders.map(x => x.id).join(",")}">снять</button></div></div>
         <input data-docs="${o.id}" type="number" min="0" value="${n}" title="заказов" readonly />
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
@@ -805,6 +810,7 @@ function bind() {
     ev.stopPropagation();
     const o = state.orders.find(x => x.id === el.dataset.one);
     if (!o) return;
+    keepOpen = [...document.querySelectorAll("details[data-keep][open]")].map(d => d.dataset.keep);
     o.truckId = null;
     o.basket = !o.address;
     save();
