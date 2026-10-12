@@ -506,8 +506,9 @@ function tripCity(o) {
 function groupStops(stops) {
   const groups = [];
   const index = new Map();
+  const trip = stops.some(o => o.lane === "trip");
   stops.forEach(o => {
-    const key = addrKey(o) || ("id:" + o.id);
+    const key = trip ? (tripCity(o) || "Без города") : (addrKey(o) || ("id:" + o.id));
     let g = index.get(key);
     if (!g) { g = { key, orders: [] }; index.set(key, g); groups.push(g); }
     g.orders.push(o);
@@ -780,7 +781,7 @@ function render() {
       </div>
       ${l==="trip"?`<label>Дата командировки</label><input data-tdate="${t.id}" type="date" value="${/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:""}" />`:""}
       <div class="muted">0 · склад · ${$("depot").value}</div>
-      ${Object.values(stops.reduce((m,o)=>{ const c=(/київ|киев/i.test((o.address||"")+" "+(o.shop||"")) ? guessZone((o.address||"")+" "+(o.shop||"")) : cityOf(o)); (m[c]||(m[c]={orders:[],city:c})).orders.push(o); return m; }, {})).map((g,i)=>{
+      ${Object.values(stops.reduce((m,o)=>{ const c = t.lane === "trip" ? tripCity(o) : (/київ|киев/i.test((o.address||"")+" "+(o.shop||"")) ? guessZone((o.address||"")+" "+(o.shop||"")) : cityOf(o)); (m[c]||(m[c]={orders:[],city:c})).orders.push(o); return m; }, {})).map((g,i)=>{
         const o = g.orders[0];
         const n = g.orders.length;
         const sum = g.orders.reduce((s,x)=>s+(Number(x.sum)||0),0);
