@@ -1094,29 +1094,29 @@ setTimeout(() => {
 }, 400);
 </script>
 <div id="logickPlayer" style="position:fixed;right:12px;bottom:12px;z-index:50;display:flex;gap:8px;align-items:center;background:#fffdf8;border:1px solid #e6dcc8;border-radius:999px;padding:6px 10px;box-shadow:0 6px 18px rgba(0,0,0,.08)">
-  <button id="logickPlay" type="button" style="width:28px;height:28px;border:0;border-radius:50%;background:#111;color:#fff;cursor:pointer">▶</button>
+  <button id="logickPlay" type="button" style="width:28px;height:28px;border:0;border-radius:50%;background:#111;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
+    <svg id="logickIcon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><polygon points="4,1.5 10.5,6 4,10.5" fill="#fff"/></svg>
+  </button>
   <span style="font-size:12px">DJKE · The song we all know</span>
   <button id="logickMute" type="button" style="border:0;background:transparent;cursor:pointer">звук</button>
 </div>
-<iframe id="logickYt" style="position:fixed;width:0;height:0;border:0;opacity:0" allow="autoplay" src="https://www.youtube.com/embed/WEI72q7l-9U?autoplay=1&loop=1&playlist=WEI72q7l-9U&controls=0&modestbranding=1"></iframe>
+<audio id="logickAudio" src="track.mp3" loop preload="auto"></audio>
 <script>
 (function(){
   const play = document.getElementById("logickPlay");
+  const icon = document.getElementById("logickIcon");
   const mute = document.getElementById("logickMute");
-  const frame = document.getElementById("logickYt");
-  let on = true;
-  function src(auto){ return "https://www.youtube.com/embed/WEI72q7l-9U?autoplay="+(auto?1:0)+"&loop=1&playlist=WEI72q7l-9U&controls=0&modestbranding=1"; }
-  play.onclick = () => {
-    on = !on;
-    frame.src = src(on);
-    play.textContent = on ? "❚❚" : "▶";
-  };
-  mute.onclick = () => { frame.src = src(false); on = false; play.textContent = "▶"; };
-  document.addEventListener("pointerdown", () => {
-    if (!on) return;
-    if (!frame.src.includes("autoplay=1")) frame.src = src(true);
-  }, { once: true });
+  const audio = document.getElementById("logickAudio");
+  const playShape = '<polygon points="4,1.5 10.5,6 4,10.5" fill="#fff"/>';
+  const pauseShape = '<rect x="2.5" y="1.5" width="2.4" height="9" fill="#fff"/><rect x="7.1" y="1.5" width="2.4" height="9" fill="#fff"/>';
+  function draw(){ icon.innerHTML = audio.paused ? playShape : pauseShape; }
+  play.onclick = () => { if (audio.paused) audio.play(); else audio.pause(); draw(); };
+  mute.onclick = () => { audio.muted = !audio.muted; mute.textContent = audio.muted ? "тихо" : "звук"; };
+  audio.onplay = draw; audio.onpause = draw;
+  audio.play().catch(() => {});
+  document.addEventListener("pointerdown", () => { if (audio.paused) audio.play().then(draw).catch(() => {}); }, { once: true });
 })();
+</script>
 </script>
 </body>
 </html>
