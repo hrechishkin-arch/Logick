@@ -40,6 +40,9 @@
     .tag { background: #ece6da; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
     .tag.bad { background: #f3d6d2; }
     .pack { margin: 8px 0; padding: 6px 8px; border: 1px solid #e6dcc8; border-radius: 10px; background: #fffdf8; }
+    .pack-head { display: flex; gap: 8px; align-items: flex-start; }
+    .pack-head details { flex: 1; }
+    .pack-head select { width: 180px; }
     .pack summary { cursor: pointer; }
     .one-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
     .one-row span { min-width: 0; }
@@ -718,7 +721,7 @@ function render() {
     return packs.map(g => {
       const sum = g.orders.reduce((s,o) => s + (Number(o.sum)||0), 0);
       const ids = g.orders.map(o => o.id).join(",");
-      return `<details class="pack"><summary><b>${esc(g.key)}</b> · ${g.orders.length} зак. · ${money(sum)}</summary>${g.orders.map(card).join("")}<select data-pack="${ids}"><option value="">пакет в машину…</option>${both}</select></details>`;
+      return `<div class="pack"><div class="pack-head"><details><summary><b>${esc(g.key)}</b> · ${g.orders.length} зак. · ${money(sum)}</summary>${g.orders.map(card).join("")}</details><select data-pack="${ids}"><option value="">пакет в машину…</option>${both}</select></div></div>`;
     }).join("");
   };
   $("estimate").textContent = "";
