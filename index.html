@@ -409,7 +409,7 @@ function parseOrders(text, onlyDate) {
     rows.push({
       client, counterparty: (c[iClient] || "").trim(), address, zone, kg: 0, docs: 1, sum: parseMoney(c[iSum]),
       note: [c[iOrder], c[iStatus], c[iWho]].filter(Boolean).join(" · "),
-      orderNo: c[iOrder] || "", shop, date: date || onlyDate
+      orderNo: c[iOrder] || "", shop, date: date || onlyDate, shipDate: date || onlyDate
     });
   }
   return rows;
@@ -600,7 +600,7 @@ $("autoBtn").onclick = () => {
     const truck = { id: uid(), name: zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
     state.trucks.push(truck);
     let seq = 1;
-    taken.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; o.date = d; o.lane = "day"; }));
+    taken.forEach(g => g.orders.forEach(o => { rememberDate(o); o.truckId = truck.id; o.seq = seq++; o.date = d; o.lane = "day"; }));
   });
   save();
 };
@@ -679,6 +679,8 @@ function openTrip(id) {
   const card = document.getElementById("board");
   if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+function rememberDate(o) { if (o && !o.shipDate && o.date) o.shipDate = o.date; }
+function restoreDate(o) { if (o && o.shipDate) o.date = o.shipDate; }
 function render() {
   const l = lane(), d = activeDate();
   $("boardTitle").textContent = state.tab === "month" ? "Календарь поставок" : l === "trip" ? "Командировка" : "Машины на " + fmt(d);
@@ -812,7 +814,7 @@ function bind() {
     const rows = state.orders.filter(o => !o.truckId && outsideKyiv(o) && cityOf(o) === city);
     if (!rows.length) return;
     let seq = state.orders.filter(x => x.truckId === t.id).reduce((m, x) => Math.max(m, Number(x.seq) || 0), 0);
-    rows.forEach(o => { o.truckId = t.id; o.seq = ++seq; o.basket = false; if (t.date && t.date !== "trip") o.date = t.date; o.lane = t.lane || "trip"; });
+    rows.forEach(o => { o.truckId = t.id; o.seq = ++seq; o.basket = false; rememberDate(o); if (t.date && t.date !== "trip") o.date = t.date; o.lane = t.lane || "trip"; });
     save();
   });
   document.querySelectorAll("[data-pack]").forEach(el => el.onchange = () => {
@@ -825,7 +827,7 @@ function bind() {
       o.truckId = t.id;
       o.seq = ++seq;
       o.basket = false;
-      if (t.date && t.date !== "trip") o.date = t.date;
+      rememberDate(o); if (t.date && t.date !== "trip") o.date = t.date;
       o.lane = t.lane || o.lane;
     });
     save();
@@ -839,7 +841,7 @@ function bind() {
     o.seq = inTruck.reduce((m, x) => Math.max(m, Number(x.seq) || 0), 0) + 1;
     o.truckId = t.id;
     o.basket = false;
-    if (t.date && t.date !== "trip") o.date = t.date;
+    rememberDate(o); if (t.date && t.date !== "trip") o.date = t.date;
     o.lane = t.lane || o.lane;
     save();
   });
@@ -865,7 +867,7 @@ function bind() {
     if (!orders.length) { alert("В машине нет заказов."); return; }
     if (!confirm("Перегрузить " + orders.length + " зак. из «" + (from.name||"Машина") + "» в «" + (to.name||"Машина") + "»?")) return;
     const last = state.orders.filter(o => o.truckId === to.id).reduce((m,o) => Math.max(m, o.seq||0), 0);
-    orders.forEach((o,i) => { o.truckId = to.id; o.seq = last + i + 1; o.date = to.date; o.lane = to.lane === "trip" ? "trip" : "day"; });
+    orders.forEach((o,i) => { o.truckId = to.id; o.seq = last + i + 1; rememberDate(o); o.date = to.date; o.lane = to.lane === "trip" ? "trip" : "day"; });
     if (!state.orders.some(o => o.truckId === from.id)) state.trucks = state.trucks.filter(x => x.id !== from.id);
     save();
   });
@@ -885,7 +887,7 @@ function bind() {
     const ids = String(el.dataset.basket || "").split(",").filter(Boolean);
     if (!ids.length) return;
     state.orders.forEach(x => {
-      if (ids.includes(x.id)) { x.truckId = null; x.basket = !x.address; }
+      if (ids.includes(x.id)) { x.truckId = null; x.basket = !x.address; restoreDate(x); }
     });
     save();
   });
@@ -897,6 +899,7 @@ function bind() {
     keepOpen = [...document.querySelectorAll("details[data-keep][open]")].map(d => d.dataset.keep);
     o.truckId = null;
     o.basket = !o.address;
+    restoreDate(o);
     save();
   });
   document.querySelectorAll("[data-day]").forEach(el => el.onclick = () => {
