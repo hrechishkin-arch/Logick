@@ -520,8 +520,8 @@ $("autoBtn").onclick = () => {
   const l = lane();
   if (l === "trip") { alert("Командировка только вручную."); return; }
   const d = activeDate();
-  const list = dayOrders(l, d).filter(o => o.address);
-  if (!list.length) { alert("Нет заявок с адресом на эту дату."); return; }
+  const list = state.orders.filter(o => !o.truckId && o.address && !outsideKyiv(o));
+  if (!list.length) { alert("В корзине нет заявок с адресом."); return; }
   list.forEach(o => { o.zone = guessZone((o.address || "") + " " + (o.shop || "")) || o.zone; o.truckId = null; });
   list.filter(outsideKyiv).forEach(o => { o.lane = "trip"; o.truckId = null; });
   const local = list.filter(o => !outsideKyiv(o));
@@ -539,7 +539,7 @@ $("autoBtn").onclick = () => {
     const truck = { id: uid(), name: zone, lane: l, date: d, zone, cap, kmLimit, driver: "" };
     state.trucks.push(truck);
     let seq = 1;
-    taken.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; }));
+    taken.forEach(g => g.orders.forEach(o => { o.truckId = truck.id; o.seq = seq++; o.date = d; o.lane = "day"; }));
   });
   save();
 };
@@ -658,7 +658,7 @@ function render() {
   const dLoad = $("date").value;
   const open = state.orders.filter(o => !o.truckId);
   const away = open.filter(o => outsideKyiv(o));
-  const queued = open.filter(o => !outsideKyiv(o) && o.address).sort((a,b) => (sameDay(a.date, dLoad) === sameDay(b.date, dLoad) ? String(a.date||"").localeCompare(String(b.date||"")) : sameDay(a.date, dLoad) ? 1 : -1));
+  const queued = open.filter(o => !outsideKyiv(o) && o.address);
   const basket = open.filter(o => !outsideKyiv(o) && !o.address).sort((a,b) => String(a.date||"").localeCompare(String(b.date||"")));
   const allTrucks = state.trucks.filter(t => t.lane === "day" || t.lane === "trip").sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.name||"").localeCompare(String(b.name||""), "ru"));
   const both = allTrucks.map(t => `<option value="${t.id}">${t.lane==="trip"?"командировка":"день"} ${fmt(t.date)} · ${t.name||"Машина"}</option>`).join("");
@@ -666,15 +666,7 @@ function render() {
     const other = o.date && !sameDay(o.date, dLoad);
     return `<div class="${other ? "other-date" : ""}" style="padding:6px;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || o.zone || "без номера"}</b> · ${o.counterparty || o.client || "без контрагента"}<div class="muted">отгрузка ${fmt(o.date) || "—"} · ${o.zone || ""} · ${o.address || o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`;
   };
-  const grouped = (rows) => {
-    const dates = [...new Set(rows.map(o => o.date || ""))];
-    return dates.map(d => {
-      const part = rows.filter(o => (o.date || "") === d);
-      const other = d && !sameDay(d, dLoad);
-      const bar = other ? `<div class="date-bar"><b>Другая дата ${fmt(d)} · ${part.length}</b><button data-opendate="${d}" type="button">Открыть дату</button></div>` : "";
-      return bar + part.map(card).join("");
-    }).join("");
-  };
+  const grouped = (rows) => rows.map(card).join("");
   $("estimate").textContent = "";
   const empty = "<span style=\"color:#777\">Пусто</span>";
   $("away").innerHTML = away.length ? [...new Set(away.map(cityOf))].map(city => {
