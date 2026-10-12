@@ -39,6 +39,8 @@
     summary.truck.head::-webkit-details-marker { display: none; }
     .tag { background: #ece6da; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
     .tag.bad { background: #f3d6d2; }
+    .pack { margin: 8px 0; padding: 6px 8px; border: 1px solid #e6dcc8; border-radius: 10px; background: #fffdf8; }
+    .pack summary { cursor: pointer; }
     .one-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
     .one-row span { min-width: 0; }
     button.mini { font-size: 11px; line-height: 1; padding: 3px 7px; white-space: nowrap; }
@@ -706,7 +708,19 @@ function render() {
     const other = o.date && !sameDay(o.date, dLoad);
     return `<div class="${other ? "other-date" : ""}" style="padding:6px;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || o.zone || "без номера"}</b> · ${o.counterparty || o.client || "без контрагента"}<div class="muted">отгрузка ${fmt(o.date) || "—"} · ${o.zone || ""} · ${o.address || o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`;
   };
-  const grouped = (rows) => rows.map(card).join("");
+  const packKey = o => /київ|киев/i.test((o.address||"")+" "+(o.shop||"")) ? guessZone((o.address||"")+" "+(o.shop||"")) : (cityOf(o) || o.zone || "Без города");
+  const grouped = (rows) => {
+    const packs = Object.values(rows.reduce((m,o) => {
+      const k = packKey(o);
+      (m[k] || (m[k] = { key: k, orders: [] })).orders.push(o);
+      return m;
+    }, {}));
+    return packs.map(g => {
+      const sum = g.orders.reduce((s,o) => s + (Number(o.sum)||0), 0);
+      const ids = g.orders.map(o => o.id).join(",");
+      return `<details class="pack"><summary><b>${esc(g.key)}</b> · ${g.orders.length} зак. · ${money(sum)}</summary>${g.orders.map(card).join("")}<select data-pack="${ids}"><option value="">пакет в машину…</option>${both}</select></details>`;
+    }).join("");
+  };
   $("estimate").textContent = "";
   const empty = "<span style=\"color:#777\">Пусто</span>";
   $("away").innerHTML = away.length ? [...new Set(away.map(cityOf))].map(city => {
@@ -780,6 +794,21 @@ function bind() {
     if (!rows.length) return;
     let seq = state.orders.filter(x => x.truckId === t.id).reduce((m, x) => Math.max(m, Number(x.seq) || 0), 0);
     rows.forEach(o => { o.truckId = t.id; o.seq = ++seq; o.basket = false; if (t.date && t.date !== "trip") o.date = t.date; o.lane = t.lane || "trip"; });
+    save();
+  });
+  document.querySelectorAll("[data-pack]").forEach(el => el.onchange = () => {
+    const t = state.trucks.find(x => x.id === el.value);
+    if (!t) return;
+    const ids = String(el.dataset.pack || "").split(",").filter(Boolean);
+    let seq = state.orders.filter(x => x.truckId === t.id).reduce((m,x) => Math.max(m, Number(x.seq)||0), 0);
+    state.orders.forEach(o => {
+      if (!ids.includes(o.id)) return;
+      o.truckId = t.id;
+      o.seq = ++seq;
+      o.basket = false;
+      if (t.date && t.date !== "trip") o.date = t.date;
+      o.lane = t.lane || o.lane;
+    });
     save();
   });
   document.querySelectorAll("[data-to]").forEach(el => el.onchange = () => {
