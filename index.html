@@ -863,8 +863,9 @@ function render() {
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
       }).join("")}
       <div class="row">
-        <select data-move="${t.id}"><option value="">перегрузить в…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
+        <select data-move="${t.id}"><option value="">в машину…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
         <button data-movego="${t.id}">Перегрузить</button>
+        <button data-copygo="${t.id}">Скопировать</button>
       </div>
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
@@ -947,6 +948,18 @@ function bind() {
     const last = state.orders.filter(o => o.truckId === to.id).reduce((m,o) => Math.max(m, o.seq||0), 0);
     orders.forEach((o,i) => { o.truckId = to.id; o.seq = last + i + 1; rememberDate(o); o.date = to.date; o.lane = to.lane === "trip" ? "trip" : "day"; });
     if (!state.orders.some(o => o.truckId === from.id)) state.trucks = state.trucks.filter(x => x.id !== from.id);
+    save();
+  });
+  document.querySelectorAll("[data-copygo]").forEach(el => el.onclick = () => {
+    const from = state.trucks.find(x => x.id === el.dataset.copygo);
+    const sel = document.querySelector(`[data-move="${el.dataset.copygo}"]`);
+    const to = state.trucks.find(x => x.id === (sel && sel.value));
+    if (!from || !to) { alert("Выберите машину, куда скопировать."); return; }
+    const orders = state.orders.filter(o => o.truckId === from.id).sort((a,b) => (a.seq||0) - (b.seq||0));
+    if (!orders.length) { alert("В машине нет заказов."); return; }
+    if (!confirm("Скопировать " + orders.length + " зак. из «" + (from.name||"Машина") + "» в «" + (to.name||"Машина") + "»? Исходная машина останется.")) return;
+    const last = state.orders.filter(o => o.truckId === to.id).reduce((m,o) => Math.max(m, o.seq||0), 0);
+    orders.forEach((o,i) => state.orders.push({ ...o, id: uid(), truckId: to.id, seq: last + i + 1, date: to.date, shipDate: to.date, lane: to.lane === "trip" ? "trip" : "day", basket: false }));
     save();
   });
   document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
