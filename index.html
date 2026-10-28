@@ -205,7 +205,7 @@ const KNOWN_TOWNS = [
   ["вишнев", "Вишнёвое"], ["ирпин", "Ирпень"], ["ирпен", "Ирпень"],
   ["буча", "Буча"], ["бровар", "Бровары"], ["бориспиль", "Борисполь"], ["бориспол", "Борисполь"],
   ["обухив", "Обухов"], ["обухов", "Обухов"], ["василькив", "Васильков"], ["васильков", "Васильков"],
-  ["вишгород", "Вышгород"], ["вышгород", "Вышгород"], ["боярк", "Боярка"],
+  ["вишгород", "Вышгород"], ["вышгород", "Вышгород"], ["боярк", "Боярка"], ["вишенк", "Вишенки"], ["баришив", "Барышевка"], ["баришев", "Барышевка"],
   ["фастив", "Фастов"], ["фастов", "Фастов"], ["украинк", "Украинка"],
   ["гостомел", "Гостомель"], ["гатне", "Гатное"], ["гатное", "Гатное"], ["глевах", "Глеваха"],
   ["новосилк", "Новоселки"], ["новоселк", "Новоселки"], ["конча-засп", "Конча-Заспа"], ["конча засп", "Конча-Заспа"]
@@ -214,8 +214,8 @@ const OBLAST_RAIONS = ["бучан", "фастив", "фастов", "вишго
 function isKyivName(name) { return /^(киив|киев)$/.test(foldAddr(name)); }
 function knownTown(name) {
   const n = foldAddr(name);
-  if (/гостомельск/.test(n)) return "";
-  for (const [k,v] of KNOWN_TOWNS) if (n.includes(k)) return v;
+  if (/гостомелск/.test(n)) return "";
+  for (const [k,v] of KNOWN_TOWNS) if (n.includes(foldAddr(k))) return v;
   return "";
 }
 function titleTown(name) {
@@ -226,7 +226,9 @@ function namedPlaces(s) {
   const re = /(?:^|[\s,.(])((?:смт|селище|село|місто|город|м|с))\.?\s*([а-яіїєґ'’\-]{3,}(?:[\s-][а-яіїєґ'’\-]{3,})?)/gi;
   let m;
   while ((m = re.exec(s))) {
-    const name = m[2].replace(/[.,)].*$/, "").trim();
+    let name = m[2].replace(/[.,)].*$/, "").trim();
+    name = name.replace(/\s+(вул|вулиц|ул|улиц|просп|пр-?т|пров|пл|площа|бул|шосе|шоссе|наб)\b.*$/i, "");
+    if (!name || /^(вул|ул|просп|пров|площа)$/i.test(name)) continue;
     if (/^(київськ|киевск|києво|бучанськ|фастівськ|вишгородськ|обухівськ|черкаськ|броварськ|бориспільськ)/i.test(name)) continue;
     out.push(name);
   }
@@ -254,12 +256,11 @@ function kyivDistrict(s) {
   }
   if (/нижн/.test(whole) && /вал/.test(whole)) return "Подольский";
   if (/гостомел/.test(whole) && /площа|\bпл\b/.test(raw)) return "Оболонский";
-  if (/бандер/.test(whole)) return "Оболонский";
   const fixed = [
     ["вавилов","Шевченковский"],["лятошин","Голосеевский"],["глушков","Голосеевский"],
     ["максимович","Голосеевский"],["вереснев","Святошинский"],["цилин","Святошинский"],
     ["басеин","Печерский"],["коновал","Печерский"],["верхогляд","Печерский"],
-    ["боичук","Печерский"],["бастион","Печерский"],["степана бандер","Оболонский"],["бандери пр","Оболонский"],["бандер","Оболонский"],
+    ["боичук","Печерский"],["бастион","Печерский"],["бандер","Шевченковский"],
     ["богатир","Оболонский"],["кавалеридз","Оболонский"],["ивасюк","Оболонский"],
     ["балти","Оболонский"],["заболот","Голосеевский"],["демиив","Голосеевский"],
     ["антонович","Голосеевский"],["саперн","Голосеевский"],["василкив","Голосеевский"],
@@ -281,7 +282,7 @@ function classify(text) {
   const s = normAddr(text);
   const f = foldAddr(text);
   const oblast = ((s.match(/([а-яіїєґ'’\-]+)\s*обл/) || [])[1] || "");
-  const raion = ((s.match(/([а-яіїєґ'’\-]+)\s*р-?н/) || [])[1] || "");
+  const raion = ((s.match(/([а-яіїєґ'’\-]+)\s*(?:район|р-?н)/) || [])[1] || "");
   const oblastFold = foldAddr(oblast);
   const raionFold = foldAddr(raion);
   const kyivOblast = /киив|киев/.test(oblastFold) || OBLAST_RAIONS.some(k => raionFold.includes(k));
@@ -298,6 +299,8 @@ function classify(text) {
   if (/(^|[^а-яіїєґ])(київ|киев)([^а-яіїєґ]|$)/.test(s) && !/київськ|киевск|києво-/.test(s)) {
     return { zone: kyivDistrict(s), trip: false, city: "Киев" };
   }
+  const knownAnywhere = knownTown(s);
+  if (knownAnywhere && !/гостомелск/.test(f)) return { zone: knownAnywhere, trip: false, city: knownAnywhere };
   if (places.length) {
     const city = titleTown(places[0]);
     return { zone: "Командировка", trip: true, city };
@@ -864,9 +867,8 @@ function render() {
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
       }).join("")}
       <div class="row">
-        <select data-move="${t.id}"><option value="">в машину…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
+        <select data-move="${t.id}"><option value="">перегрузить в…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
         <button data-movego="${t.id}">Перегрузить</button>
-        <button data-copygo="${t.id}">Скопировать</button>
       </div>
       <div class="btns">
         <button data-upfree="${t.id}">снять все точки</button>
@@ -949,18 +951,6 @@ function bind() {
     const last = state.orders.filter(o => o.truckId === to.id).reduce((m,o) => Math.max(m, o.seq||0), 0);
     orders.forEach((o,i) => { o.truckId = to.id; o.seq = last + i + 1; rememberDate(o); o.date = to.date; o.lane = to.lane === "trip" ? "trip" : "day"; });
     if (!state.orders.some(o => o.truckId === from.id)) state.trucks = state.trucks.filter(x => x.id !== from.id);
-    save();
-  });
-  document.querySelectorAll("[data-copygo]").forEach(el => el.onclick = () => {
-    const from = state.trucks.find(x => x.id === el.dataset.copygo);
-    const sel = document.querySelector(`[data-move="${el.dataset.copygo}"]`);
-    const to = state.trucks.find(x => x.id === (sel && sel.value));
-    if (!from || !to) { alert("Выберите машину, куда скопировать."); return; }
-    const orders = state.orders.filter(o => o.truckId === from.id).sort((a,b) => (a.seq||0) - (b.seq||0));
-    if (!orders.length) { alert("В машине нет заказов."); return; }
-    if (!confirm("Скопировать " + orders.length + " зак. из «" + (from.name||"Машина") + "» в «" + (to.name||"Машина") + "»? Исходная машина останется.")) return;
-    const last = state.orders.filter(o => o.truckId === to.id).reduce((m,o) => Math.max(m, o.seq||0), 0);
-    orders.forEach((o,i) => state.orders.push({ ...o, id: uid(), truckId: to.id, seq: last + i + 1, date: to.date, shipDate: to.date, lane: to.lane === "trip" ? "trip" : "day", basket: false }));
     save();
   });
   document.querySelectorAll("[data-drop]").forEach(el => el.onclick = () => {
