@@ -326,7 +326,6 @@ function isRc(o) {
 }
 function outsideKyiv(o) {
   if (!o || !o.address) return false;
-  if (isRc(o)) return false;
   return classify((o.address || "") + " " + (o.shop || "")).trip;
 }
 
