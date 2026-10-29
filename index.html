@@ -321,8 +321,12 @@ function classify(text) {
   return { zone: "Без района", trip: false, city: "" };
 }
 function guessZone(text) { return classify(text).zone; }
+function isRc(o) {
+  return /рц/i.test(String((o && o.shop) || ""));
+}
 function outsideKyiv(o) {
   if (!o || !o.address) return false;
+  if (isRc(o)) return false;
   return classify((o.address || "") + " " + (o.shop || "")).trip;
 }
 
@@ -679,7 +683,7 @@ $("autoBtn").onclick = () => {
   const l = lane();
   if (l === "trip") { alert("Командировка только вручную."); return; }
   const d = activeDate();
-  const list = state.orders.filter(o => !o.truckId && o.address && !outsideKyiv(o));
+  const list = state.orders.filter(o => !o.truckId && o.address && !outsideKyiv(o) && !isRc(o));
   if (!list.length) { alert("В корзине нет заявок с адресом."); return; }
   list.forEach(o => { o.zone = guessZone((o.address || "") + " " + (o.shop || "")) || o.zone; o.truckId = null; });
   list.filter(outsideKyiv).forEach(o => { o.lane = "trip"; o.truckId = null; });
