@@ -1310,6 +1310,7 @@ setTimeout(() => {
   <button id="logickPlay" type="button" style="width:28px;height:28px;border:0;border-radius:50%;background:#111;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
     <svg id="logickIcon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><polygon points="4,1.5 10.5,6 4,10.5" fill="#fff"/></svg>
   </button>
+  <button id="logickNext" type="button" title="следующий" style="width:28px;height:28px;border:0;border-radius:50%;background:#111;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-size:14px">›</button>
   <select id="logickTrack" style="border:0;background:transparent;font-size:12px;max-width:220px">
     <option value="track.mp3">DJKE · The song we all know</option>
     <option value="track-ace.mp3">Ace of Base · All That She Wants</option>
@@ -1324,18 +1325,23 @@ setTimeout(() => {
   const icon = document.getElementById("logickIcon");
   const mute = document.getElementById("logickMute");
   const pick = document.getElementById("logickTrack");
+  const next = document.getElementById("logickNext");
   const audio = document.getElementById("logickAudio");
   const playShape = '<polygon points="4,1.5 10.5,6 4,10.5" fill="#fff"/>';
   const pauseShape = '<rect x="2.5" y="1.5" width="2.4" height="9" fill="#fff"/><rect x="7.1" y="1.5" width="2.4" height="9" fill="#fff"/>';
   function draw(){ icon.innerHTML = audio.paused ? playShape : pauseShape; }
   play.onclick = () => { if (audio.paused) audio.play(); else audio.pause(); draw(); };
   mute.onclick = () => { audio.muted = !audio.muted; mute.textContent = audio.muted ? "тихо" : "звук"; };
-  pick.onchange = () => {
-    const was = !audio.paused;
+  function loadTrack(playNow) {
     audio.src = pick.value;
     audio.load();
-    if (was) audio.play();
+    if (playNow) audio.play();
     draw();
+  }
+  pick.onchange = () => loadTrack(!audio.paused);
+  next.onclick = () => {
+    pick.selectedIndex = (pick.selectedIndex + 1) % pick.options.length;
+    loadTrack(true);
   };
   audio.onplay = draw; audio.onpause = draw;
 })();
