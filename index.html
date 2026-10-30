@@ -832,9 +832,13 @@ function render() {
   const both = allTrucks.map(t => `<option value="${t.id}">${t.lane==="trip"?"командировка":"день"} ${fmt(t.date)} · ${t.name||"Машина"}</option>`).join("");
   const card = (o) => {
     const other = o.date && !sameDay(o.date, dLoad);
-    return `<div class="${other ? "other-date" : ""}" style="padding:6px;border-bottom:1px solid #e6dcc8"><b>${o.orderNo || o.note || o.zone || "без номера"}</b> · ${o.counterparty || o.client || "без контрагента"}<div class="muted">отгрузка ${fmt(o.date) || "—"} · ${o.zone || ""} · ${o.address || o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`;
+    const rc = isRc(o) ? "РЦ · " : "";
+    return `<div class="${other ? "other-date" : ""}" style="padding:6px;border-bottom:1px solid #e6dcc8${isRc(o) ? ";background:#fff4d6" : ""}"><b>${rc}${o.orderNo || o.note || o.zone || "без номера"}</b> · ${o.counterparty || o.client || "без контрагента"}<div class="muted">отгрузка ${fmt(o.date) || "—"} · ${o.zone || ""} · ${o.address || o.shop || ""} ${o.sum ? money(o.sum) : ""}</div><select data-to="${o.id}"><option value="">в машину…</option>${both}</select> <button data-del="${o.id}">×</button></div>`;
   };
-  const packKey = o => /київ|киев/i.test((o.address||"")+" "+(o.shop||"")) ? guessZone((o.address||"")+" "+(o.shop||"")) : (cityOf(o) || o.zone || "Без города");
+  const packKey = o => {
+    const base = /київ|киев/i.test((o.address||"")+" "+(o.shop||"")) ? guessZone((o.address||"")+" "+(o.shop||"")) : (cityOf(o) || o.zone || "Без города");
+    return isRc(o) ? ("РЦ · " + base) : base;
+  };
   const grouped = (rows) => {
     const packs = Object.values(rows.reduce((m,o) => {
       const k = packKey(o);
