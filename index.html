@@ -895,8 +895,11 @@ function render() {
         <input data-sum="${o.id}" type="text" value="${sum.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}" title="сумма грн" readonly /></div>`;
       }).join("")}
       <div class="row">
-        <select data-move="${t.id}"><option value="">в машину…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
+        <select data-move="${t.id}"><option value="">перегрузить в…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
         <button data-movego="${t.id}">Перегрузить</button>
+      </div>
+      <div class="row">
+        <select data-copy="${t.id}"><option value="">скопировать в…</option>${state.trucks.filter(x => x.id !== t.id).map(x => `<option value="${x.id}">${x.lane==="trip"?"командировка":"день"} ${fmt(x.date)} · ${x.name||"Машина"}</option>`).join("")}</select>
         <button data-copygo="${t.id}">Скопировать</button>
       </div>
       <div class="btns">
@@ -984,7 +987,7 @@ function bind() {
   });
   document.querySelectorAll("[data-copygo]").forEach(el => el.onclick = () => {
     const from = state.trucks.find(x => x.id === el.dataset.copygo);
-    const sel = document.querySelector(`[data-move="${el.dataset.copygo}"]`);
+    const sel = document.querySelector(`[data-copy="${el.dataset.copygo}"]`);
     const to = state.trucks.find(x => x.id === (sel && sel.value));
     if (!from || !to) { alert("Выберите машину, куда скопировать."); return; }
     const orders = state.orders.filter(o => o.truckId === from.id).sort((a,b) => (a.seq||0) - (b.seq||0));
