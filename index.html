@@ -1153,7 +1153,7 @@ function dayReport(date) {
   }));
   const aside = state.orders.filter(o => o.date === date && !onTrucks.has(orderKey(o.orderNo) || String(o.orderNo || "").trim()));
   const asideLine = aside.length ? `<br>Командировка: ${aside.length} — ${aside.map(o => esc(orderLabel(o)) + (o.lane === "trip" || outsideKyiv(o) ? " командировка" : o.truckId ? "" : " не в машине")).join("; ")}` : "";
-  printSheet(`<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p class="inv-head">Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Дублей снято: ${dupes.length}${asideLine}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${money(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`);
+  printSheet(`<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p class="inv-head">Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Дублей снято: ${dupes.length}${asideLine}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${withFee(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`);
 }
 function tripReport(id) {
   const t = state.trucks.find(x => x.id === id);
