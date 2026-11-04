@@ -1146,12 +1146,14 @@ function dayReport(date) {
     dupes.push(d);
   });
   const ordersN = loaded.reduce((s, x) => s + x.stops.length, 0);
+  const pointsN = loaded.reduce((s, x) => s + groupStops(x.stops).length, 0);
   const sumAll = loaded.reduce((s, x) => s + x.stops.reduce((a, o) => a + (Number(o.sum) || 0), 0), 0);
   const kmAll = loaded.reduce((s, x) => s + (Number(x.t.kmTotal) || 0), 0);
   const orderLine = o => `<p class="stop-line">${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${esc(o.address || o.shop || "без адреса")} — ${money(o.sum)}</p>`;
   const blocks = loaded.map(({ t, stops }) => {
     const sum = stops.reduce((s, o) => s + (Number(o.sum) || 0), 0);
-    return `<section class="truck-block"><p class="truck-name"><b>${esc(t.name)}</b><br>заказов ${stops.length} · км ${t.kmTotal || "—"} · сумма ${withFee(sum)}</p>${stops.map(orderLine).join("")}</section>`;
+    const points = groupStops(stops).length;
+    return `<section class="truck-block"><p class="truck-name"><b>${esc(t.name)}</b><br>точек ${points} · заказов ${stops.length} · км ${t.kmTotal || "—"} · сумма ${withFee(sum)}</p>${stops.map(orderLine).join("")}</section>`;
   }).join("");
   const dupeBlock = dupes.length ? `<section class="truck-block"><p class="truck-name"><b>Дубли</b><br>снято ${dupes.length}</p>${dupes.map(o => `<p class="stop-line">${esc(orderLabel(o))} — ${esc(partyOf(o) || "без контрагента")} — ${esc(o.address || o.shop || "без адреса")} — ${money(o.sum)} — продублирован и снят</p>`).join("")}</section>` : "";
   const fromTable = new Set((state.imported && state.imported[date]) || []);
@@ -1170,7 +1172,7 @@ function dayReport(date) {
   }));
   const aside = state.orders.filter(o => o.date === date && !onTrucks.has(orderKey(o.orderNo) || String(o.orderNo || "").trim()));
   const asideLine = aside.length ? `<br>Командировка: ${aside.length} — ${aside.map(o => esc(orderLabel(o)) + (o.lane === "trip" || outsideKyiv(o) ? " командировка" : o.truckId ? "" : " не в машине")).join("; ")}` : "";
-  printSheet(`<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p class="inv-head">Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Дублей снято: ${dupes.length}${asideLine}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${withFee(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`);
+  printSheet(`<section class="sheet"><h2>Отчёт за день ${fmt(date)}</h2><p class="inv-head">Машин: ${loaded.length}<br>Из таблицы: ${fromTable.size}<br>На машинах: ${ordersN}<br>Точек: ${pointsN}<br>Дублей снято: ${dupes.length}${asideLine}<br>Общий километраж: ${kmAll || "—"}<br>Сумма отгрузки: ${withFee(sumAll)}<br>Склад: ${esc($("depot").value)}</p>${blocks}${dupeBlock}</section>`);
 }
 function tripReport(id) {
   const t = state.trucks.find(x => x.id === id);
