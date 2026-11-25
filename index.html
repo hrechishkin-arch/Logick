@@ -656,17 +656,20 @@ $("loadPack").onclick = () => {
   rows.forEach(p => {
     const key = orderKey(p.orderNo || p.note);
     const lane = outsideKyiv(p) ? "trip" : destLane;
-    const dupeDate = p.date || useDate;
+    const targetDate = useDate;
+    const ship = p.date || useDate;
     if (key && seenInPaste.has(key)) {
-      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key, sum: p.sum, counterparty: p.counterparty || p.client || "", note: "продублирован и снят" });
+      state.dupes.push({ id: uid(), date: targetDate, orderNo: key, sum: p.sum, counterparty: p.counterparty || p.client || "", note: "продублирован и снят" });
       duped++;
       return;
     }
     if (key) seenInPaste.add(key);
-    if (key) rememberImport(dupeDate, key);
-    const existing = key ? state.orders.find(o => orderKey(o.orderNo || o.note) === key) : null;
+    if (key) rememberImport(targetDate, key);
+    // дубли и обновления только в пределах выбранной даты — другие даты независимы
+    const existing = key ? state.orders.find(o => orderKey(o.orderNo || o.note) === key && sameDay(o.date, targetDate)) : null;
     if (existing && !existing.truckId) {
-      existing.date = p.date || useDate;
+      existing.date = targetDate;
+      existing.shipDate = ship;
       existing.lane = lane;
       existing.address = p.address;
       existing.zone = p.zone;
@@ -679,28 +682,26 @@ $("loadPack").onclick = () => {
       return;
     }
     if (existing) {
-      state.dupes.push({ id: uid(), date: dupeDate, orderNo: key || p.orderNo || "", sum: p.sum, counterparty: p.counterparty || p.client || "", note: "продублирован и снят" });
+      state.dupes.push({ id: uid(), date: targetDate, orderNo: key || p.orderNo || "", sum: p.sum, counterparty: p.counterparty || p.client || "", note: "продублирован и снят" });
       duped++;
       return;
     }
-    state.orders.push({ id: uid(), lane, truckId: null, date: p.date || useDate, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
+    state.orders.push({ id: uid(), lane, truckId: null, date: targetDate, shipDate: ship, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
     added++;
   });
   state.orders.forEach(o => { if (o.address && !outsideKyiv(o)) o.basket = false; });
   state.date = useDate;
   $("pack").value = "";
   save();
-  const openNow = state.orders.filter(o => !o.truckId && !outsideKyiv(o) && o.address);
-  const dayN = openNow.filter(o => !o.date || sameDay(o.date, useDate)).length;
-  const otherN = openNow.length - dayN;
-  $("loadStatus").textContent = "В очереди " + openNow.length + ": на " + fmt(useDate) + " — " + dayN + ", другая дата — " + otherN + ". Добавлено " + added + ", обновлено " + skipped + (duped ? ", дублей снято " + duped : "") + ".";
+  const dayN = state.orders.filter(o => !o.truckId && sameDay(o.date, useDate)).length;
+  $("loadStatus").textContent = "На " + fmt(useDate) + ": в очереди " + dayN + ". Добавлено " + added + ", обновлено " + skipped + (duped ? ", дублей снято " + duped : "") + ". Другие даты не изменены.";
 };
 $("autoBtn").onclick = () => {
   const l = lane();
   if (l === "trip") { alert("Командировка только вручную."); return; }
   const d = activeDate();
-  const list = state.orders.filter(o => !o.truckId && o.address && !outsideKyiv(o) && !isRc(o));
-  if (!list.length) { alert("В корзине нет заявок с адресом."); return; }
+  const list = state.orders.filter(o => !o.truckId && o.address && !outsideKyiv(o) && !isRc(o) && sameDay(o.date, d));
+  if (!list.length) { alert("На " + fmt(d) + " нет заявок с адресом в очереди."); return; }
   list.forEach(o => { o.zone = guessZone((o.address || "") + " " + (o.shop || "")) || o.zone; o.truckId = null; });
   list.filter(outsideKyiv).forEach(o => { o.lane = "trip"; o.truckId = null; });
   const local = list.filter(o => !outsideKyiv(o));
@@ -744,21 +745,42 @@ $("clearBasket").onclick = () => {
   const d = $("date").value;
   clearOpen("Без адреса", o => !outsideKyiv(o) && (sameDay(o.date, d) || !o.date) && !o.address);
 };
-$("clearAway").onclick = () => clearOpen("Командировка", o => outsideKyiv(o));
+$("clearAway").onclick = () => {
+  const d = $("date").value;
+  clearOpen("Командировка", o => outsideKyiv(o) && sameDay(o.date, d));
+};
 $("clearQueue").onclick = () => {
   const d = $("date").value;
   clearOpen("Очередь дня", o => !outsideKyiv(o) && (sameDay(o.date, d) || !o.date) && o.address);
 };
 $("clearDay").onclick = () => {
   const d = $("date").value;
+  if (!d) { alert("Сначала выберите дату."); return; }
   const l = lane();
-  if (!confirm(l === "trip" ? "Убрать заявки командировки, которые не стоят в машине?" : "Убрать дневную развозку на " + fmt(d) + "?")) return;
-  if (l === "trip") state.orders = state.orders.filter(o => !(o.lane === "trip" && !o.truckId));
-  else {
-    state.orders = state.orders.filter(o => !(o.lane === "day" && (o.date === d || !o.truckId)));
-    state.trucks = state.trucks.filter(t => !(t.lane === "day" && t.date === d));
-    state.dupes = (state.dupes || []).filter(x => x.date !== d);
-    if (state.imported) delete state.imported[d];
+  if (!confirm(l === "trip"
+    ? ("Убрать командировки на " + fmt(d) + "? Другие даты не трогаем.")
+    : ("Убрать дневную развозку на " + fmt(d) + "? Другие даты не трогаем."))) return;
+  if (l === "trip") {
+    const tripIds = new Set(state.trucks.filter(t => t.lane === "trip" && sameDay(t.date, d)).map(t => t.id));
+    state.orders = state.orders.filter(o => {
+      if (o.truckId && tripIds.has(o.truckId)) return false;
+      if (!o.truckId && (o.lane === "trip" || outsideKyiv(o)) && sameDay(o.date, d)) return false;
+      return true;
+    });
+    state.trucks = state.trucks.filter(t => !(t.lane === "trip" && sameDay(t.date, d)));
+  } else {
+    const dayIds = new Set(state.trucks.filter(t => t.lane === "day" && sameDay(t.date, d)).map(t => t.id));
+    state.orders = state.orders.filter(o => {
+      if (o.truckId && dayIds.has(o.truckId)) return false;
+      if (o.lane !== "trip" && sameDay(o.date, d)) return false;
+      return true;
+    });
+    state.trucks = state.trucks.filter(t => !(t.lane === "day" && sameDay(t.date, d)));
+    state.dupes = (state.dupes || []).filter(x => !sameDay(x.date, d));
+    if (state.imported) {
+      Object.keys(state.imported).forEach(k => { if (sameDay(k, d)) delete state.imported[k]; });
+      delete state.imported[d];
+    }
   }
   save();
 };
