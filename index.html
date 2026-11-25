@@ -810,7 +810,7 @@ function render() {
       save();
     });
   }
-  const trips = state.trucks.filter(t => t.lane === "trip").sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  const trips = state.trucks.filter(t => t.lane === "trip" && t.date === $("date").value).sort((a,b) => String(a.date).localeCompare(String(b.date)));
   $("tripList").innerHTML = trips.map(t => {
     const n = state.orders.filter(o => o.truckId === t.id).length;
     return `<div style="display:flex;gap:4px;margin:0 0 6px"><button data-trip="${t.id}" style="flex:1;text-align:left">${fmt(t.date) || "без даты"} · ${t.name || "Командировка"} · ${n} зак.</button><button data-tripx="${t.id}" title="убрать">×</button></div>`;
@@ -824,7 +824,8 @@ function render() {
     save();
   });
   const dLoad = $("date").value;
-  const open = state.orders.filter(o => !o.truckId);
+  // Очередь/корзина/командировки слева — только выбранная дата; новая дата без машин и заявок остаётся пустой
+  const open = state.orders.filter(o => !o.truckId && sameDay(o.date, dLoad));
   const away = open.filter(o => outsideKyiv(o));
   const queued = open.filter(o => !outsideKyiv(o) && o.address);
   const basket = open.filter(o => !outsideKyiv(o) && !o.address).sort((a,b) => String(a.date||"").localeCompare(String(b.date||"")));
