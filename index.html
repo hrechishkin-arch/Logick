@@ -273,7 +273,7 @@ function kyivDistrict(s) {
     ["институт","Печерский"],["коцюбин","Печерский"],["спортивн","Шевченковский"],["бассеин","Печерский"],["басеин","Печерский"],["кишки","Голосеевский"],["самиил","Голосеевский"],
     ["григорен","Дарницкий"],["чоколов","Соломенский"],["чоколив","Соломенский"],
     ["чернобыл","Подольский"],["чорнобил","Подольский"],["еленов","Подольский"],["оленив","Подольский"],
-    ["липков","Шевченковский"],["борщаг","Соломенский"],
+    ["липков","Шевченковский"],
     ["багговутов","Шевченковский"],["багговутив","Шевченковский"],
     ["глубочиц","Шевченковский"],["глибочиц","Шевченковский"],
     ["сечевих","Шевченковский"],["сечових","Шевченковский"],["сичових","Шевченковский"],
@@ -309,6 +309,16 @@ function classify(text) {
   const kyivOblast = /киив|киев/.test(oblastFold) || OBLAST_RAIONS.some(k => raionFold.includes(k));
   const otherOblast = oblast && !/киив|киев/.test(oblastFold);
   const places = namedPlaces(s);
+  // сначала известные населённые пункты области — даже если в адресе написано "м. Київ"
+  for (const name of places) {
+    const known = knownTown(name);
+    if (known && !isKyivName(name)) return { zone: known, trip: false, city: known };
+  }
+  // явные формы Борщаговки / Гатного и т.п. по всему адресу
+  const knownAnywhere = knownTown(s);
+  if (knownAnywhere && !/гостомелск/.test(f) && !isKyivName(knownAnywhere)) {
+    return { zone: knownAnywhere, trip: false, city: knownAnywhere };
+  }
   for (const name of places) {
     if (isKyivName(name)) return { zone: kyivDistrict(s), trip: false, city: "Киев" };
   }
@@ -320,8 +330,6 @@ function classify(text) {
   if (/(^|[^а-яіїєґ])(київ|киев)([^а-яіїєґ]|$)/.test(s) && !/київськ|киевск|києво-/.test(s)) {
     return { zone: kyivDistrict(s), trip: false, city: "Киев" };
   }
-  const knownAnywhere = knownTown(s);
-  if (knownAnywhere && !/гостомелск/.test(f)) return { zone: knownAnywhere, trip: false, city: knownAnywhere };
   if (places.length) {
     const city = titleTown(places[0]);
     return { zone: "Командировка", trip: true, city };
