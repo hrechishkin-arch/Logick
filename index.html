@@ -669,7 +669,7 @@ $("loadPack").onclick = () => {
     const existing = key ? state.orders.find(o => orderKey(o.orderNo || o.note) === key && sameDay(o.date, targetDate)) : null;
     if (existing && !existing.truckId) {
       existing.date = targetDate;
-      existing.shipDate = ship;
+      existing.shipDate = ship || existing.shipDate || targetDate;
       existing.lane = lane;
       existing.address = p.address;
       existing.zone = p.zone;
@@ -686,7 +686,7 @@ $("loadPack").onclick = () => {
       duped++;
       return;
     }
-    state.orders.push({ id: uid(), lane, truckId: null, date: targetDate, shipDate: ship, ...p, orderNo: key || p.orderNo || "", basket: !p.address });
+    state.orders.push({ id: uid(), ...p, lane, truckId: null, date: targetDate, shipDate: ship || p.date || targetDate, orderNo: key || p.orderNo || "", basket: !p.address });
     added++;
   });
   state.orders.forEach(o => { if (o.address && !outsideKyiv(o)) o.basket = false; });
